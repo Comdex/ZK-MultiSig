@@ -1,3 +1,8 @@
-import { Add } from './Add.js';
+import { MultiSigZkapp } from './multi_sig_zkapp';
 
-export { Add };
+export { MultiSigZkapp };
+
+export * from './models/contract_state';
+export * from './models/permit';
+export * from './models/proposal';
+export * from './models/updates';
