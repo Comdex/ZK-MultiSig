@@ -1,5 +1,5 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+# . "$(dirname "$0")/_/husky.sh"
 
-cd contracts
-npx lint-staged
+# cd contracts
+# npx lint-staged
