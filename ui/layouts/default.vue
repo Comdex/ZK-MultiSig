@@ -2,7 +2,10 @@
     <div class="main">
         <div class="header">
             <div class="title">
-                MultiSig Wallet
+                <NuxtLink to="/" style="color: gray; text-decoration:none">
+                    MultiSig Wallet
+                </NuxtLink>
+
 
                 <n-tag type="info" style="margin-left: 10px">
                     Berkley TestNet
@@ -36,15 +39,15 @@
             <div v-else class="wallet-desc">
                 <div class="wallet">
                     <n-tag :bordered="false" type="success" size="large" round style="margin-right: 12px">
-                        Wallet: {{ zkappState.walletPublicKey58 }}
+                        Wallet: {{ sliceAddress(zkappState.walletPublicKey58) }}
                     </n-tag>
 
                     <n-tag :bordered="false" type="success" size="large" round style="margin-right: 12px">
-                        Balance: {{ walletBalance }} mina
+                        Balance: {{ zkappState.walletBalance }} mina
                     </n-tag>
 
                     <n-tag :bordered="false" type="success" size="large" round>
-                        Nonce: {{ walletNonce }}
+                        Nonce: {{ zkappState.walletNonce }}
                     </n-tag>
                 </div>
 
@@ -107,24 +110,6 @@ const showConnectWallet = () => {
     signerPrivateKey58.value = null;
     showConnectWalletModal.value = true;
 };
-
-const walletBalance = computed(async () => {
-    if (zkappState.value.walletPublicKey58 != null) {
-        let account = await getAccountJSON(zkappState.value.walletPublicKey58);
-        return nano2Mina(account?.balance!);
-    }
-
-    return null;
-});
-
-const walletNonce = computed(async () => {
-    if (zkappState.value.walletPublicKey58 != null) {
-        let account = await getAccountJSON(zkappState.value.walletPublicKey58);
-        return account?.nonce;
-    }
-
-    return null;
-});
 
 const setSignerKey = (signerPrivateKey58Str: string) => {
     try {

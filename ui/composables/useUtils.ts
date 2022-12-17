@@ -8,8 +8,9 @@ export default function () {
     return BigInt(m) / 1000000000n;
   };
 
-  const mina2Nano = (m: number | bigint): bigint => {
-    return BigInt(m) * BigInt(10) ** BigInt(9);
+  const mina2Nano = (m: number | string | bigint): bigint => {
+    //return BigInt(m) * BigInt(10) ** BigInt(9);
+    return BigInt((m as number) * 1000000000);
   };
 
   const isEmptyStr = (str: string | null): boolean => {

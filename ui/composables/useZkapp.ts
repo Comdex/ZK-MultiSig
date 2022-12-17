@@ -1,3 +1,4 @@
+import { Stringifier } from "postcss";
 import {
   AccountUpdate,
   fetchAccount,
@@ -6,14 +7,17 @@ import {
   PrivateKey,
   PublicKey,
   UInt32,
+  UInt64,
   VerificationKey,
 } from "snarkyjs";
-import { MultiSigZkapp, ApproverHashes } from "zk-multi-sig";
+import { MultiSigZkapp, ApproverHashes, Proposal } from "zk-multi-sig";
 // import ZkappWorkerClient from "../zkapp/zkappWorkerClient";
 
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
 export default function () {
+  const { mina2Nano } = useUtils();
+
   type ZkappState = {
     hasBeenSetup: boolean;
     hasBeenCompiled: boolean;
@@ -25,10 +29,12 @@ export default function () {
     walletName: null | string;
     walletPublicKey: null | PublicKey;
     walletPublicKey58: null | string;
+    walletNonce: null | number;
+    walletBalance: null | string;
 
     approvers: null | { name: string | null; address: string }[];
     approverHashes: null | ApproverHashes;
-    approverThreshold: null | UInt32;
+    approverThreshold: null | number;
 
     signerPrivateKey: null | PrivateKey;
     signerPublicKey: null | PublicKey;
@@ -48,9 +54,11 @@ export default function () {
       walletName: null as null | string,
       walletPublicKey: null as null | PublicKey,
       walletPublicKey58: null as null | string,
+      walletNonce: null as null | number,
+      walletBalance: null as null | string,
 
       approvers: [] as { name: string | null; address: string }[],
-      approverThreshold: null as null | UInt32,
+      approverThreshold: null as null | number,
       approverHashes: null as null | ApproverHashes,
 
       signerPrivateKey: null as null | PrivateKey,
@@ -80,14 +88,14 @@ export default function () {
     console.log("Load Contract Done");
   };
 
-  const compileContract = async (): Promise<VerificationKey> => {
+  const compileContract = async (): Promise<{ data: string; hash: string }> => {
     console.log("start compile contract");
     console.time("compile MultiSigZkapp");
     let { verificationKey } = await zkappState.value.MultiSigZkapp!.compile();
     zkappState.value.hasBeenCompiled = true;
     console.timeEnd("compile MultiSigZkapp");
 
-    return verificationKey as VerificationKey;
+    return verificationKey;
   };
 
   const getAccount = async (publicKey58: string) => {
@@ -114,7 +122,7 @@ export default function () {
     publicKey: string;
     delegate: string | undefined;
     balance: string;
-    nonce: string;
+    nonce: number;
     verificationKey: string | undefined;
   };
 
@@ -130,11 +138,53 @@ export default function () {
       publicKey: result.account.publicKey.toBase58(),
       delegate: result.account.delegate?.toBase58(),
       balance: result.account.balance.toString(),
-      nonce: result.account.nonce.toString(),
+      nonce: Number(result.account.nonce.toBigint()),
       verificationKey: result.account.verificationKey,
     };
 
     return accountJSON;
+  };
+
+  const createApproverHashes = (approvers: PublicKey[]) => {
+    return ApproverHashes.createWithPadding(approvers);
+  };
+
+  const createProposal = ({
+    contractAddress,
+    contractNonce,
+    desc,
+    amount,
+    receiver,
+  }: {
+    contractAddress: string;
+    contractNonce: number;
+    desc: string;
+    amount: string;
+    receiver: string;
+  }) => {
+    const tempContractAddress = PublicKey.fromBase58(contractAddress);
+    const tempContractNonce = UInt32.from(contractNonce);
+    const tempAmount = UInt64.from(mina2Nano(amount));
+    const tempReceiver = PublicKey.fromBase58(receiver);
+    return Proposal.create({
+      contractAddress: tempContractAddress,
+      contractNonce: tempContractNonce,
+      desc,
+      amount: tempAmount,
+      receiver: tempReceiver,
+    });
+  };
+
+  const getProposalFields = (value: {
+    contractAddress: string;
+    contractNonce: number;
+    desc: string;
+    amount: string;
+    receiver: string;
+  }) => {
+    const p = createProposal(value);
+
+    return Proposal.toFields(p);
   };
 
   const proveUpdateTransaction = async () => {
@@ -159,7 +209,7 @@ export default function () {
     approverThreshold,
   }: {
     zkAppPrivateKey: PrivateKey;
-    verificationKey: VerificationKey;
+    verificationKey: { data: string; hash: string };
     approvers: PublicKey[];
     approverThreshold: UInt32;
   }) => {
@@ -169,7 +219,7 @@ export default function () {
       () => {
         AccountUpdate.fundNewAccount(zkappState.value.signerPrivateKey!);
 
-        zkappState.value.zkApp.deploy({
+        zkappState.value.zkApp!.deploy({
           zkappKey: zkAppPrivateKey,
           verificationKey,
           approvers,
@@ -208,5 +258,8 @@ export default function () {
     proveUpdateTransaction,
     getTransactionJSON,
     deployWallet,
+    createApproverHashes,
+    createProposal,
+    getProposalFields,
   };
 }

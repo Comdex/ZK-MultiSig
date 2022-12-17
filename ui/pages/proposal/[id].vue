@@ -34,37 +34,37 @@
             'margin-top': '20px',
             'margin-bottom': '20px',
         }">
-            <n-form-item label="Desc:">
-                Fund the contract
-            </n-form-item>
-
-            <n-form-item label="Amount(mina):">
-                2.75
-            </n-form-item>
-
-            <n-form-item label="Receiver:">
-                B62qm1uQcaZ9Ck8qXuNt46u3K5SQrZ8x7dDfurUFv4VuV8HVMBv6g6r
-            </n-form-item>
-
             <n-form-item label="Contract Wallet:">
-                B62qm1uQcaZ9Ck8qXuNt46u3K5SQrZ8x7dDfurUFv4VuV8HVMBv6g6r
+                {{ zkappState.walletPublicKey58 }}
             </n-form-item>
 
             <n-form-item label="Contract Nonce:">
-                1
+                {{ zkappState.walletNonce }}
+            </n-form-item>
+
+            <n-form-item label="Desc:">
+                {{ proposal?.data!.desc }}
+            </n-form-item>
+
+            <n-form-item label="Amount(mina):">
+                {{ proposal?.data!.amount }}
+            </n-form-item>
+
+            <n-form-item label="Receiver:">
+                {{ proposal?.data!.receiver }}
             </n-form-item>
 
             <n-form-item label="Signatures Signed:">
-                1
+                {{ proposal?.data!.signedNum }}
             </n-form-item>
 
             <n-form-item label="Meet Approver Threshold:">
-                No
+                {{ meetThreshold }}
             </n-form-item>
         </n-form>
 
         <div class="operate">
-            <n-button type="info" style="margin-right: 5px" ghost>
+            <n-button type="info" :disabled="addSignBtnDisabled" style="margin-right: 5px" ghost @click="addSign">
                 Sign Proposal
             </n-button>
 
@@ -78,9 +78,94 @@
 </template>
 
 <script setup lang="ts">
+import { MessageReactive, useMessage } from 'naive-ui';
+import { Field, Signature } from 'snarkyjs';
 const route = useRoute();
+const { zkappState, getProposalFields } = useZkapp();
+
+
 const proposalId = route.params.id;
-console.log("proposalId: ", proposalId);
+console.log("route proposalId: ", proposalId);
+
+const message = useMessage();
+let messageReactive: MessageReactive | null = null;
+const removeLoading = () => {
+    setTimeout(() => {
+        if (messageReactive) {
+            messageReactive.destroy();
+            messageReactive = null;
+        }
+    }, 3000);
+};
+const createLoading = (msg?: string) => {
+    if (!messageReactive) {
+        if (msg) {
+            messageReactive = message.loading(msg, {
+                duration: 0
+            });
+        } else {
+            messageReactive = message.loading("Please wait", {
+                duration: 0
+            });
+        }
+
+    }
+};
+
+const addSignBtnDisabled = ref<boolean>(false);
+type Proposal = {
+    id: number;
+    desc: string;
+    amount: number;
+    receiver: string;
+    contractAddress: string;
+    contractNonce: number;
+    signedNum: number;
+};
+const { data: proposal, refresh: proposalListRefresh } = await useFetch('/api/getProposalDetail', {
+    method: 'GET', params: { proposalId }, pick: ['data']
+});
+
+const meetThreshold = computed(() => {
+    if (proposal.value?.data?.signedNum! > zkappState.value.approverThreshold!) {
+        return "Yes";
+    }
+
+    return "No";
+});
+
+const addSign = async () => {
+    addSignBtnDisabled.value = true;
+    createLoading();
+    const fs = getProposalFields({
+        contractAddress: "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y",
+        contractNonce: 2, desc: proposal.value?.data?.desc!,
+        amount: proposal.value?.data?.amount!, receiver: proposal.value?.data?.receiver!
+    });
+
+    const s: { proposalId: string; publicKey58: string; sign: string } = {
+        proposalId: proposalId as string,
+        publicKey58: zkappState.value.signerPublicKey58 as string,
+        sign: JSON.stringify(Signature.create(zkappState.value.signerPrivateKey!, fs).toJSON())
+    };
+    console.log("sign: ", s);
+
+    const { data: res } = await useFetch('/api/addSign', {
+        method: 'POST', body: s
+    });
+
+    console.log("create proposal res: ", res.value);
+
+    addSignBtnDisabled.value = false;
+    if (res.value === "success") {
+        message.success("Add signatrue success");
+        removeLoading();
+    } else {
+        message.error("Add signature failed");
+        removeLoading();
+    }
+    proposalListRefresh();
+};
 
 </script>
 

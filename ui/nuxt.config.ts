@@ -8,10 +8,6 @@ export default defineNuxtConfig({
     strict: true,
   },
 
-  nitro: {
-    plugins: ["~/server/db/index.ts"],
-  },
-
   vite: {
     build: { target: "es2020" },
     optimizeDeps: {

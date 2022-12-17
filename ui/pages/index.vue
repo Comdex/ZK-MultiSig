@@ -24,7 +24,7 @@
                 Create Proposal
             </n-button>
 
-            <n-button type="success" ghost disabled>
+            <n-button type="success" ghost @click="updateSetting">
                 Update Setting
             </n-button>
         </div>
@@ -32,13 +32,15 @@
 
     <div class="data">
         <n-tabs type="line" animated justify-content="center">
-            <n-tab-pane name="oasis" tab="Proposal List">
+            <n-tab-pane name="proposals" tab="Proposal List">
                 <div class="data-body">
-                    <n-data-table :columns="columns" :data="proposalData" :pagination="pagination" :bordered="false" />
+                    <n-data-table :columns="columns" :data="proposals!.data" :pagination="pagination"
+                        :bordered="false" />
                 </div>
             </n-tab-pane>
-            <n-tab-pane name="the beatles" tab="Setting Action">
-
+            <n-tab-pane name="settings" tab="Setting Action">
+                <n-empty description="Under development">
+                </n-empty>
             </n-tab-pane>
 
         </n-tabs>
@@ -60,7 +62,7 @@
             </n-form-item>
 
             <n-form-item label="Amount(mina)" path="amount">
-                <n-input v-model:value="proposalModel.amount" placeholder="Input Amount" />
+                <n-input-number v-model:value="proposalModel.amount" placeholder="Input Amount" />
             </n-form-item>
 
             <n-form-item label="Receiver" path="receiver">
@@ -70,7 +72,8 @@
 
         <template #footer>
             <div class="create-proposal-modal-bottom">
-                <n-button type="success" style="margin-right: 5px" ghost @click="createProposal">
+                <n-button type="success" style="margin-right: 5px" :disabled="createProposalBtnDisabled" ghost
+                    @click="createProposal">
                     Create
                 </n-button>
             </div>
@@ -226,8 +229,7 @@
 <script setup lang="ts">
 import { DataTableColumns, FormInst, NButton, useMessage } from 'naive-ui';
 import type { MessageReactive } from 'naive-ui';
-import { PrivateKey, PublicKey, UInt32, VerificationKey } from 'snarkyjs';
-import { has } from 'lodash';
+import { PrivateKey, PublicKey, UInt32 } from 'snarkyjs';
 
 const message = useMessage();
 let messageReactive: MessageReactive | null = null;
@@ -254,14 +256,18 @@ const createLoading = (msg?: string) => {
     }
 };
 
-const { isEmptyStr } = useUtils();
+const { isEmptyStr, nano2Mina, mina2Nano } = useUtils();
 const { zkappState, getAccount, initZkappInstance,
-    compileContract, deployWallet,
+    compileContract, deployWallet, getAccountJSON,
+    createApproverHashes,
     getApproverHashes, getApproverThreshold } = useZkapp();
 
 const addBtnDisabled = ref<boolean>(false);
 const createBtnDisabled = ref<boolean>(false);
+const createProposalBtnDisabled = ref<boolean>(false);
+
 const STORAGE_KEY_WALLET_CONF = "walletConfig";
+
 type WalletConfJSON = {
     walletName: string | null;
     walletAddress: string;
@@ -288,7 +294,22 @@ const segmented = {
     footer: 'soft'
 };
 
-const createProposal = () => {
+const { data: proposals, refresh: proposalListRefresh } = await useFetch('/api/getProposals', {
+    method: 'GET', params: { contractAddress: "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y" }, pick: ['data']
+});
+
+console.log("proposals value: ", proposals.value);
+
+const updateSetting = () => {
+    message.info("Under development");
+};
+const createProposal = async () => {
+    // if (zkappState.value.walletPublicKey58 == null) {
+    //     message.error("Please add wallet or create wallet first");
+    //     return;
+    // }
+    createProposalBtnDisabled.value = true;
+    createLoading("Please wait...");
     type ProposalValue = {
         contractAddress: string;
         contractNonce: number;
@@ -308,6 +329,29 @@ const createProposal = () => {
         message.error("Please input receiver");
         return;
     }
+
+    // for test
+    const p: ProposalValue = {
+        contractAddress: "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y",
+        contractNonce: 2,
+        desc: desc!,
+        amount: amount + "",
+        receiver: receiver!
+    };
+    const { data: res } = await useFetch('/api/createProposal', {
+        method: 'POST', body: p
+    });
+    console.log("create proposal res: ", res.value);
+    createProposalBtnDisabled.value = false;
+    if (res.value === "success") {
+        message.success("Create proposal success");
+        removeLoading();
+        showCreateProposalModal.value = false;
+    } else {
+        message.error("Create proposal failed");
+        removeLoading();
+    }
+    proposalListRefresh();
 };
 
 const showCreateProposalModal = ref(false);
@@ -324,9 +368,7 @@ const rules = {
         message: 'Please input desc'
     },
     amount: {
-        required: true,
-        trigger: ['blur', 'input'],
-        message: 'Please input amount(mina)'
+        required: true
     },
     receiver: {
         required: true,
@@ -407,7 +449,11 @@ const createWallet = async () => {
         addStatusForDone();
         return;
     }
+
+    showCreateWalletModal.value = false;
     const approverThreshold: UInt32 = UInt32.from(createWalletModel.value.threshold);
+    zkappState.value.approverThreshold = createWalletModel.value.threshold;
+
     let approvers: { name: string | null, address: string }[] = [{ name: createWalletModel.value.ownerName1, address: createWalletModel.value.ownerAddress1! }];
     if (!isEmptyStr(createWalletModel.value.ownerAddress2)) {
         approvers.push({ name: createWalletModel.value.ownerName2, address: createWalletModel.value.ownerAddress2! });
@@ -419,6 +465,7 @@ const createWallet = async () => {
         approvers.push({ name: createWalletModel.value.ownerName4, address: createWalletModel.value.ownerAddress4! });
     }
     let approverPublicKeys: PublicKey[] = approvers.map(v => PublicKey.fromBase58(v.address));
+    zkappState.value.approverHashes = createApproverHashes(approverPublicKeys);
 
     // generate keys;
     const zkAppPrivateKey = PrivateKey.random();
@@ -439,7 +486,7 @@ const createWallet = async () => {
     initZkappInstance(zkAppPublicKey58!);
     addStatusForDone();
 
-    let vk: VerificationKey | null = null;
+    let vk: { data: string; hash: string } | null = null;
     if (!zkappState.value.hasBeenCompiled) {
         createLoading("Waiting for the contract to compile, this may take a few minutes...");
         vk = await compileContract();
@@ -451,7 +498,12 @@ const createWallet = async () => {
     let hash = await deployWallet({ zkAppPrivateKey, verificationKey: vk!, approvers: approverPublicKeys, approverThreshold });
     removeLoading();
 
+    const account = await getAccountJSON(zkappState.value.walletPublicKey58!);
+    zkappState.value.walletNonce = account?.nonce!;
+    zkappState.value.walletBalance = nano2Mina(account?.balance!).toString();
     message.info("deploy transaction hash: " + hash);
+
+    proposalListRefresh();
 };
 
 
@@ -555,6 +607,7 @@ const addWallet = async () => {
         return;
     }
 
+    showAddWalletModal.value = false;
     // save wallet conf
     let walletConf: WalletConfJSON = {
         walletName: addWalletModel.value.walletName as string,
@@ -578,7 +631,7 @@ const addWallet = async () => {
     initZkappInstance(walletAddress!);
 
     zkappState.value.approverHashes = getApproverHashes();
-    zkappState.value.approverThreshold = getApproverThreshold();
+    zkappState.value.approverThreshold = Number(getApproverThreshold().toBigint());
 
     addStatusForDone();
 
@@ -588,34 +641,42 @@ const addWallet = async () => {
         removeLoading();
     }
 
+    const account = await getAccountJSON(zkappState.value.walletPublicKey58!);
+    zkappState.value.walletNonce = account?.nonce!;
+    zkappState.value.walletBalance = nano2Mina(account?.balance!).toString();
+
+    proposalListRefresh();
 };
 
 
 
 const pagination = false;
 type Proposal = {
+    id: number;
     desc: string;
     amount: number;
     receiver: string;
     contractAddress: string;
     contractNonce: number;
-    signedApproverNum: number;
-    meetThreshold: boolean;
+    signedNum: number;
 };
-const proposalData: Proposal[] = [
-    {
-        desc: 'test', amount: 2, receiver: 'B62qp5myKYfrN3bUwrN242fZZt3CscyzDHWhM6DT8udqRhfZx2qkmuM',
-        contractAddress: 'B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd', contractNonce: 1, signedApproverNum: 0, meetThreshold: false
-    },
-    {
-        desc: 'fund the project', amount: 2.5, receiver: 'B62qp5myKYfrN3bUwrN242fZZt3CscyzDHWhM6DT8udqRhfZx2qkmuM',
-        contractAddress: 'B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd', contractNonce: 2, signedApproverNum: 1, meetThreshold: false
-    },
-    {
-        desc: 'support dev', amount: 100.3, receiver: 'B62qp5myKYfrN3bUwrN242fZZt3CscyzDHWhM6DT8udqRhfZx2qkmuM',
-        contractAddress: 'B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd', contractNonce: 3, signedApproverNum: 2, meetThreshold: true
-    },
-];
+
+
+
+// const proposalData: Proposal[] = [
+//     {
+//         desc: 'test', amount: 2, receiver: 'B62qp5myKYfrN3bUwrN242fZZt3CscyzDHWhM6DT8udqRhfZx2qkmuM',
+//         contractAddress: 'B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd', contractNonce: 1, signedNum: 0
+//     },
+//     {
+//         desc: 'fund the project', amount: 2.5, receiver: 'B62qp5myKYfrN3bUwrN242fZZt3CscyzDHWhM6DT8udqRhfZx2qkmuM',
+//         contractAddress: 'B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd', contractNonce: 2, signedNum: 1
+//     },
+//     {
+//         desc: 'support dev', amount: 100.3, receiver: 'B62qp5myKYfrN3bUwrN242fZZt3CscyzDHWhM6DT8udqRhfZx2qkmuM',
+//         contractAddress: 'B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd', contractNonce: 3, signedNum: 2
+//     },
+// ];
 
 let createColumns = ({
     viewDetail
@@ -645,13 +706,13 @@ let createColumns = ({
         },
         {
             title: 'SignedNum',
-            key: 'signedApproverNum'
+            key: 'signedNum'
         },
         {
             title: 'MeetThreshold',
             key: 'meetThreshold',
             render: (val) => {
-                if (val.meetThreshold) {
+                if (val.signedNum > zkappState.value.approverThreshold!) {
                     return 'Yes';
                 } else {
                     return 'No';
@@ -680,7 +741,8 @@ let createColumns = ({
 
 let columns = createColumns({
     viewDetail(row: Proposal) {
-        console.info(`Play ${row.desc}`);
+        console.info(`proposal id: ${row.id}`);
+        navigateTo(`/proposal/${row.id}`);
     }
 });
 

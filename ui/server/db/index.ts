@@ -1,7 +1,6 @@
-import { Nitro } from "nitropack";
 import { Sequelize, Model, DataTypes } from "sequelize";
 
-const sequelize = new Sequelize({
+export const sequelize = new Sequelize({
   dialect: "sqlite",
   storage: "./db.sqlite",
 });
@@ -13,27 +12,33 @@ interface Proposal extends Model {
   desc: string;
   amount: string;
   receiver: string;
+  signedNum: number;
 }
 
 const ProposalModel = sequelize.define<Proposal>("Proposal", {
   id: {
     primaryKey: true,
+    autoIncrement: true,
     type: DataTypes.INTEGER.UNSIGNED,
   },
   contractAddress: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
   },
   contractNonce: {
     type: DataTypes.INTEGER.UNSIGNED,
   },
   desc: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
   },
   amount: {
     type: DataTypes.STRING,
   },
   receiver: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
+  },
+  signedNum: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    defaultValue: 0,
   },
 });
 
@@ -47,28 +52,19 @@ interface ProposalSign extends Model {
 const ProposalSignModel = sequelize.define<Proposal>("ProposalSign", {
   id: {
     primaryKey: true,
+    autoIncrement: true,
     type: DataTypes.INTEGER.UNSIGNED,
   },
   proposalId: {
     type: DataTypes.INTEGER.UNSIGNED,
   },
   publicKey58: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
   },
   sign: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
   },
 });
-// await sequelize.sync();
-
-export default (_nitroApp: Nitro) => {
-  try {
-    useDB();
-    console.log("DB connection established.");
-  } catch (err) {
-    console.error("DB connection failed.", err);
-  }
-};
 
 export const useDB = () => {
   return {
