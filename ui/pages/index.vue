@@ -8,8 +8,14 @@
                 Create New Wallet
             </n-button>
 
-            <n-button type="info" style="margin-right: 5px" ghost @click="openAddWalletModal">
+            <n-button type="info" style="margin-right: 13px" ghost @click="openAddWalletModal">
                 Add Existing Wallet
+            </n-button>
+
+            <n-button :disabled="compileWalletBtnDisabled"
+                v-if="zkappState.hasBeenCompiled == false && zkappState.walletPublicKey58 != null" type="primary" ghost
+                @click="compileWallet">
+                Compile Contract
             </n-button>
 
             <!-- <n-space vertical style="min-width:180px">
@@ -39,8 +45,11 @@
                 </div>
             </n-tab-pane>
             <n-tab-pane name="settings" tab="Setting Action">
-                <n-empty description="Under development">
-                </n-empty>
+                <div class="under-dev-body">
+                    <n-empty size="large" description="Under development">
+                    </n-empty>
+                </div>
+
             </n-tab-pane>
 
         </n-tabs>
@@ -152,6 +161,15 @@
     <n-modal v-model:show="showAddWalletModal" preset="card" class="create-proposal-modal" :style="bodyStyle"
         title="Add Existing Wallet" size="huge" :bordered="false" :segmented="segmented" :mask-closable="false"
         :close-on-esc="false">
+        <div style="color: red; margin-bottom: 10px">
+            wallet address for test:
+            B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd
+
+            owner:
+            B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y
+            B62qo9XJskZo9k1ErFqpuG21msA3y9HkpMQTVmg8LuYDFyasmcND2FW
+            B62qm1uQcaZ9Ck8qXuNt46u3K5SQrZ8x7dDfurUFv4VuV8HVMBv6g6r
+        </div>
 
         <div class="modal-content">
             <n-form ref="addWalletFormRef" :model="addWalletModel" :rules="addWalletRules" label-placement="top"
@@ -234,13 +252,35 @@ import type { Proposal, WalletConfJSON } from '../common/types';
 
 const { isEmptyStr, nano2Mina, mina2Nano,
     message, createLoading, removeLoading } = useUtils();
-const { zkappState, getAccount, initZkappInstance,
+const { zkappState, currentWalletAddress, getAccount, initZkappInstance,
     compileContract, deployWallet, getAccountJSON,
     createApproverHashes, getApproverHashes, getApproverThreshold } = useZkapp();
 
 const addBtnDisabled = ref<boolean>(false);
 const createBtnDisabled = ref<boolean>(false);
 const createProposalBtnDisabled = ref<boolean>(false);
+const compileWalletBtnDisabled = ref<boolean>(false);
+
+let proposals = ref<Proposal[]>([]);
+
+watch(currentWalletAddress, async (newWalletAddress) => {
+    console.log("currentWalletAddress update");
+    const { data: res } = await useFetch('/api/getProposals', {
+        method: 'GET', params: { contractAddress: newWalletAddress }, pick: ['data']
+    });
+    proposals.value = res.value as unknown as Proposal[];
+    console.log("proposals value: ", proposals.value);
+});
+
+onMounted(async () => {
+    console.log("index onMounted");
+    console.log("currentWalletAddress update");
+    const { data: res } = await useFetch('/api/getProposals', {
+        method: 'GET', params: { contractAddress: currentWalletAddress.value }, pick: ['data']
+    });
+    proposals.value = res.value as unknown as Proposal[];
+    console.log("proposals value: ", proposals.value);
+});
 
 // const walletOptions = [
 //     {
@@ -262,14 +302,18 @@ const segmented = {
     footer: 'soft'
 };
 
-const { data: proposals, refresh: proposalListRefresh } = await useFetch('/api/getProposals', {
-    method: 'GET', params: { contractAddress: zkappState.value.walletPublicKey58 }, pick: ['data']
-});
-
-console.log("proposals value: ", proposals.value);
-
 const updateSetting = () => {
     message.info("Under development");
+};
+
+const compileWallet = async () => {
+    compileWalletBtnDisabled.value = true;
+    createLoading("Waiting for the contract to compile, this may take a few minutes...");
+    setTimeout(async () => {
+        await compileContract();
+    }, 3000);
+    removeLoading();
+    compileWalletBtnDisabled.value = false;
 };
 
 const createProposal = async () => {
@@ -319,7 +363,6 @@ const createProposal = async () => {
         message.error("Create proposal failed");
         removeLoading();
     }
-    proposalListRefresh();
 };
 
 const showCreateProposalModal = ref(false);
@@ -381,6 +424,10 @@ const createWalletRules = {
     },
 };
 const openCreateWalletModal = () => {
+    if (zkappState.value.signerPrivateKey == null) {
+        message.error("Please connect signer wallet first");
+        return;
+    }
     showCreateWalletModal.value = true;
 };
 const createStatusForBegin = () => {
@@ -449,6 +496,7 @@ const createWallet = async () => {
     window.localStorage.setItem(STORAGE_KEY_WALLET_CONF, JSON.stringify(walletConf));
     zkappState.value.walletName = addWalletModel.value.walletName;
     zkappState.value.walletPublicKey58 = zkAppPublicKey58;
+    currentWalletAddress.value = zkAppPublicKey58;
     zkappState.value.walletPublicKey = zkAppPublicKey;
     zkappState.value.approvers = walletConf.owners;
     initZkappInstance(zkAppPublicKey58!);
@@ -471,7 +519,6 @@ const createWallet = async () => {
     zkappState.value.walletBalance = nano2Mina(account?.balance!).toString();
     message.info("deploy transaction hash: " + hash);
 
-    proposalListRefresh();
 };
 
 
@@ -513,6 +560,10 @@ const addWalletRules = {
     },
 };
 const openAddWalletModal = () => {
+    if (zkappState.value.signerPrivateKey == null) {
+        message.error("Please connect signer wallet first");
+        return;
+    }
     addWalletModel.value.walletName = null;
     addWalletModel.value.walletAddress = null;
     addWalletModel.value.ownerName1 = null;
@@ -594,6 +645,7 @@ const addWallet = async () => {
     window.localStorage.setItem(STORAGE_KEY_WALLET_CONF, JSON.stringify(walletConf));
     zkappState.value.walletName = addWalletModel.value.walletName;
     zkappState.value.walletPublicKey58 = walletAddress;
+    currentWalletAddress.value = walletAddress;
     zkappState.value.walletPublicKey = PublicKey.fromBase58(walletAddress!);
     zkappState.value.approvers = walletConf.owners;
     initZkappInstance(walletAddress!);
@@ -613,7 +665,6 @@ const addWallet = async () => {
     zkappState.value.walletNonce = account?.nonce!;
     zkappState.value.walletBalance = nano2Mina(account?.balance!).toString();
 
-    proposalListRefresh();
 };
 
 
@@ -729,6 +780,15 @@ let columns = createColumns({
 
     .data-body {
         margin-top: 8px;
+        min-height: 450px;
+    }
+
+    .under-dev-body {
+        min-height: 450px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        align-content: center;
     }
 }
 

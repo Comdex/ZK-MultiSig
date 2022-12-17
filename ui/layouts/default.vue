@@ -38,8 +38,10 @@
 
             <div v-else class="wallet-desc">
                 <div class="wallet">
-                    <n-tag :bordered="false" type="success" size="large" round style="margin-right: 12px">
+                    <n-tag @click="copyWalletPublicKey58" :bordered="false" type="success" size="large" round
+                        style="margin-right: 12px">
                         Wallet: {{ sliceAddress(zkappState.walletPublicKey58) }}
+                        ({{ zkappState.walletName }})
                     </n-tag>
 
                     <n-tag :bordered="false" type="success" size="large" round style="margin-right: 12px">
@@ -52,7 +54,10 @@
                 </div>
 
                 <div class="website">
-                    {{ runtimeConfig.public.zkAppUrl }}
+                    <NuxtLink to="/" style="color: gray; text-decoration:none">
+                        {{ runtimeConfig.public.zkAppUrl }}
+                    </NuxtLink>
+
                 </div>
             </div>
 
@@ -68,6 +73,14 @@
                 Testnet
                 , and its signature is still not verifiable in the circuit, so temporarily use the method of
                 importing the private key to perform operations such as signing.
+
+                <div style="margin-top: 5px">
+                    keys for test:
+                    EKEXKuzh365e3pWDAQAWMR1wuFnmtLn1oC3g1bMN2XBw7hB7ksX6
+                    EKENSaxTrnJ9CH336EnXeJVqv3vPWhmUCQgie1MdTC29wM28bnec
+                    EKF76fJsTc5JBeLBrWxGAwGhSvochWyhJBwWqFTro9Dqyai5J1bn
+                </div>
+
             </div>
             <n-form label-placement="top" label-width="auto" require-mark-placement="right-hanging" size="medium">
                 <n-form-item label="Mina Private Key" path="privateKey">
@@ -92,7 +105,7 @@ import { WalletConfJSON } from '~~/common/types';
 import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF } from '../common/constant';
 
 const { sliceAddress, nano2Mina, message } = useUtils();
-const { zkappState, loadSnarkyJS, loadContract,
+const { zkappState, currentWalletAddress, loadSnarkyJS, loadContract,
     setActiveInstanceToBerkeley, getAccountJSON,
     getApproverHashes, getApproverThreshold,
     initZkappInstance } = useZkapp();
@@ -159,9 +172,21 @@ const copySignerPublicKey58 = async () => {
     }
 };
 
+const copyWalletPublicKey58 = async () => {
+    try {
+        let value = zkappState.value.walletPublicKey58;
+        if (value != null) {
+            await navigator.clipboard.writeText(value);
+            message.info("MultiWallet address has been copied to the clipboard");
+        }
 
+    } catch (err) {
+        message.error("copy failed");
+    }
+};
 
 onMounted(async () => {
+    console.log("layout onMounted");
     if (!zkappState.value.hasBeenSetup) {
         await loadSnarkyJS();
         setActiveInstanceToBerkeley();
@@ -178,8 +203,10 @@ onMounted(async () => {
     if (walletConfStr != null) {
         try {
             const wc: WalletConfJSON = JSON.parse(walletConfStr);
+            console.log("wallet config: ", wc);
             zkappState.value.walletName = wc.walletName;
             zkappState.value.walletPublicKey58 = wc.walletAddress;
+            currentWalletAddress.value = wc.walletAddress;
             zkappState.value.approvers = wc.owners;
 
             zkappState.value.walletPublicKey = PublicKey.fromBase58(wc.walletAddress);

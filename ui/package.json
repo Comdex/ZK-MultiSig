@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "build": "nuxt build",
+    "build": "cross-env NODE_OPTIONS=\"--max_old_space_size=4096\" nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@css-render/vue3-ssr": "^0.15.11",
+    "cross-env": "^7.0.3",
     "naive-ui": "^2.34.2",
     "nuxt": "3.0.0",
     "sass": "^1.56.2",

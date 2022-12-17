@@ -24,15 +24,15 @@
         </div>
 
         <n-form label-placement="left" label-width="auto" label-align="right" :style="{
-            'maxWidth': '640px',
             'border-width': '1px',
-            'border-color': 'green',
             'border-style': 'dashed',
-            'padding-left': '40px',
-            'padding-right': '40px',
+            'padding': '40px',
             'border-radius': '5px',
             'margin-top': '20px',
             'margin-bottom': '20px',
+            //'background-color': 'rgba(32, 128, 240, 0.1)',
+            'background-color': '#f9fbfc',
+            'color': '#2080f0',
         }">
             <n-form-item label="Contract Wallet:">
                 {{ zkappState.walletPublicKey58 }}
@@ -94,12 +94,15 @@ const sendBtnDisabled = ref<boolean>(false);
 const proposal = ref<Proposal | null>(null);
 const signs = ref<ProposalSign[] | null>(null);
 
-const { data: res, refresh: proposalListRefresh } = await useFetch('/api/getProposalDetail', {
-    method: 'GET', params: { proposalId }, pick: ['data']
+onMounted(async () => {
+    const { data: res, refresh: proposalListRefresh } = await useFetch('/api/getProposalDetail', {
+        method: 'GET', params: { proposalId }, pick: ['data']
+    });
+
+    proposal.value = res.value?.data?.proposal as unknown as Proposal;
+    signs.value = res.value?.data?.signs as ProposalSign[];
 });
 
-proposal.value = res.value?.data?.proposal as unknown as Proposal;
-signs.value = res.value?.data?.signs as ProposalSign[];
 
 
 const meetThreshold = computed(() => {
@@ -111,8 +114,23 @@ const meetThreshold = computed(() => {
 });
 
 const sendProposal = async () => {
+    if (zkappState.value.signerPrivateKey == null) {
+        message.error("Please connect signer wallet first");
+        return;
+    }
+    if (proposal.value?.signedNum! < zkappState.value.approverThreshold!) {
+        message.error("The number of signatures has not yet met the threshold");
+        return;
+    }
     sendBtnDisabled.value = true;
     createLoading();
+
+    if (!zkappState.value.hasBeenCompiled) {
+        message.error(`Please click the "Compile Contract" button on the main page before proceeding`);
+        sendBtnDisabled.value = false;
+        removeLoading();
+        return;
+    }
     const p = createProposal({
         contractAddress: zkappState.value.walletPublicKey58!,
         contractNonce: zkappState.value.walletNonce!, desc: proposal.value?.desc!,
@@ -130,6 +148,11 @@ const sendProposal = async () => {
 };
 
 const addSign = async () => {
+    if (zkappState.value.signerPrivateKey == null) {
+        message.error("Please connect signer wallet first");
+        return;
+    }
+
     addSignBtnDisabled.value = true;
     createLoading();
     const approverHashes = zkappState.value.approverHashes;
@@ -168,7 +191,6 @@ const addSign = async () => {
         message.error("Add signature failed");
         removeLoading();
     }
-    proposalListRefresh();
 };
 
 </script>

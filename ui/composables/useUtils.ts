@@ -3,25 +3,25 @@ import { MessageReactive, useMessage } from "naive-ui";
 export default function () {
   const message = useMessage();
 
-  let messageReactive: MessageReactive | null = null;
+  const messageReactive = ref<MessageReactive | null>(null);
 
   const removeLoading = () => {
     setTimeout(() => {
-      if (messageReactive) {
-        messageReactive.destroy();
-        messageReactive = null;
+      if (messageReactive.value) {
+        messageReactive.value.destroy();
+        messageReactive.value = null;
       }
     }, 3000);
   };
 
   const createLoading = (msg?: string) => {
-    if (!messageReactive) {
+    if (!messageReactive.value) {
       if (msg) {
-        messageReactive = message.loading(msg, {
+        messageReactive.value = message.loading(msg, {
           duration: 0,
         });
       } else {
-        messageReactive = message.loading("Please wait", {
+        messageReactive.value = message.loading("Please wait", {
           duration: 0,
         });
       }

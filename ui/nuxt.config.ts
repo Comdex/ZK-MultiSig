@@ -16,9 +16,9 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    build: { target: "es2020" },
+    build: { target: "esnext" },
     optimizeDeps: {
-      esbuildOptions: { target: "es2020" },
+      esbuildOptions: { target: "esnext" },
 
       include:
         process.env.NODE_ENV === "development"

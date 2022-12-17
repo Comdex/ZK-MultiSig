@@ -48,6 +48,10 @@ export default function () {
     // zkappWorkerClient: null | ZkappWorkerClient;
   };
 
+  const currentWalletAddress = useState<null | string>(
+    "currentWalletAddress",
+    () => null
+  );
   const zkappState = useState<ZkappState>("zkappState", () => {
     return {
       hasBeenSetup: false,
@@ -266,6 +270,8 @@ export default function () {
 
   const sendAssets = async (p: ProposalWithSigns) => {
     const transactionFee = 100_000_000;
+
+    await getAccount(zkappState.value.walletPublicKey58!);
     let transaction = await Mina.transaction(
       { feePayerKey: zkappState.value.signerPrivateKey!, fee: transactionFee },
       () => {
@@ -292,6 +298,7 @@ export default function () {
 
   return {
     zkappState,
+    currentWalletAddress,
     initZkappInstance,
     loadSnarkyJS,
     setActiveInstanceToBerkeley,
