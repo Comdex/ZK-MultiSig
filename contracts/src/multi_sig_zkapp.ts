@@ -76,10 +76,12 @@ export class MultiSigZkapp extends SmartContract {
     let approverThreshold = this.approverThreshold.get();
     this.approverThreshold.assertEquals(approverThreshold);
 
+    // In order to prevent replay attacks, it is necessary to check the contractAddress and
+    // contractNonce in the signature, and the nonce of the contract also needs to be incremented
+    // in each transaction.
     let proposal = proposalWithSigns.proposal;
     this.account.nonce.assertEquals(proposal.contractNonce);
     this.self.publicKey.assertEquals(proposal.contractAddress);
-
     this.self.body.incrementNonce = Bool(true);
 
     proposalWithSigns
