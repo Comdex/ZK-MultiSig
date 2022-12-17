@@ -5,14 +5,20 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const proposalId = query.proposalId as Identifier;
 
-  const { ProposalModel } = useDB();
+  const { ProposalModel, ProposalSignModel } = useDB();
   try {
-    let p = await ProposalModel.findByPk(proposalId);
-    console.log("proposal: ", p?.toJSON());
+    let proposal = await ProposalModel.findByPk(proposalId);
+    console.log("proposal: ", proposal?.toJSON());
 
+    let signs = await ProposalSignModel.findAll({
+      where: { proposalId },
+    });
     return {
       code: 200,
-      data: p,
+      data: {
+        proposal,
+        signs,
+      },
     };
   } catch (err) {
     console.log(err);

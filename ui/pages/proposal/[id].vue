@@ -43,19 +43,19 @@
             </n-form-item>
 
             <n-form-item label="Desc:">
-                {{ proposal?.data!.desc }}
+                {{ proposal?.desc }}
             </n-form-item>
 
             <n-form-item label="Amount(mina):">
-                {{ proposal?.data!.amount }}
+                {{ proposal?.amount }}
             </n-form-item>
 
             <n-form-item label="Receiver:">
-                {{ proposal?.data!.receiver }}
+                {{ proposal?.receiver }}
             </n-form-item>
 
             <n-form-item label="Signatures Signed:">
-                {{ proposal?.data!.signedNum }}
+                {{ proposal?.signedNum }}
             </n-form-item>
 
             <n-form-item label="Meet Approver Threshold:">
@@ -68,7 +68,7 @@
                 Sign Proposal
             </n-button>
 
-            <n-button type="info" style="margin-right: 5px" ghost disabled>
+            <n-button type="info" style="margin-right: 5px" ghost :disabled="sendBtnDisabled" @click="sendProposal">
                 Send To Network
             </n-button>
         </div>
@@ -78,69 +78,73 @@
 </template>
 
 <script setup lang="ts">
-import { MessageReactive, useMessage } from 'naive-ui';
-import { Field, Signature } from 'snarkyjs';
+import { PublicKey, Signature } from 'snarkyjs';
+import type { Proposal, ProposalSign } from '../../common/types';
 const route = useRoute();
-const { zkappState, getProposalFields } = useZkapp();
-
+const { zkappState, getProposalFields, createProposal,
+    createProposalWithSigns, sendAssets } = useZkapp();
+const { createLoading, removeLoading, message } = useUtils();
 
 const proposalId = route.params.id;
 console.log("route proposalId: ", proposalId);
 
-const message = useMessage();
-let messageReactive: MessageReactive | null = null;
-const removeLoading = () => {
-    setTimeout(() => {
-        if (messageReactive) {
-            messageReactive.destroy();
-            messageReactive = null;
-        }
-    }, 3000);
-};
-const createLoading = (msg?: string) => {
-    if (!messageReactive) {
-        if (msg) {
-            messageReactive = message.loading(msg, {
-                duration: 0
-            });
-        } else {
-            messageReactive = message.loading("Please wait", {
-                duration: 0
-            });
-        }
-
-    }
-};
-
 const addSignBtnDisabled = ref<boolean>(false);
-type Proposal = {
-    id: number;
-    desc: string;
-    amount: number;
-    receiver: string;
-    contractAddress: string;
-    contractNonce: number;
-    signedNum: number;
-};
-const { data: proposal, refresh: proposalListRefresh } = await useFetch('/api/getProposalDetail', {
+const sendBtnDisabled = ref<boolean>(false);
+
+const proposal = ref<Proposal | null>(null);
+const signs = ref<ProposalSign[] | null>(null);
+
+const { data: res, refresh: proposalListRefresh } = await useFetch('/api/getProposalDetail', {
     method: 'GET', params: { proposalId }, pick: ['data']
 });
 
+proposal.value = res.value?.data?.proposal as unknown as Proposal;
+signs.value = res.value?.data?.signs as ProposalSign[];
+
+
 const meetThreshold = computed(() => {
-    if (proposal.value?.data?.signedNum! > zkappState.value.approverThreshold!) {
+    if (proposal.value?.signedNum! > zkappState.value.approverThreshold!) {
         return "Yes";
     }
 
     return "No";
 });
 
+const sendProposal = async () => {
+    sendBtnDisabled.value = true;
+    createLoading();
+    const p = createProposal({
+        contractAddress: zkappState.value.walletPublicKey58!,
+        contractNonce: zkappState.value.walletNonce!, desc: proposal.value?.desc!,
+        amount: proposal.value?.amount! + '', receiver: proposal.value?.receiver!
+    });
+
+    const approvers = signs.value?.map((s) => PublicKey.fromBase58(s.publicKey58));
+    const signatrues = signs.value?.map((s) => Signature.fromJSON(JSON.parse(s.sign)));
+    const ps = createProposalWithSigns({ proposal: p, approvers: approvers!, signs: signatrues! });
+    let hash = await sendAssets(ps);
+
+    removeLoading();
+    sendBtnDisabled.value = false;
+    message.info(`The transaction is sent successfully, hash: ${hash}`);
+};
+
 const addSign = async () => {
     addSignBtnDisabled.value = true;
     createLoading();
+    const approverHashes = zkappState.value.approverHashes;
+    const isApprover = approverHashes!.isApprover(zkappState.value.signerPublicKey!);
+    if (!isApprover) {
+        addSignBtnDisabled.value = false;
+        removeLoading();
+        message.error("The current signer wallet is not one of the owners of current multisig wallet");
+        return;
+    }
+
     const fs = getProposalFields({
-        contractAddress: "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y",
-        contractNonce: 2, desc: proposal.value?.data?.desc!,
-        amount: proposal.value?.data?.amount!, receiver: proposal.value?.data?.receiver!
+        contractAddress: zkappState.value.walletPublicKey58!,
+        contractNonce: zkappState.value.walletNonce!, desc: proposal.value?.desc!,
+        amount: proposal.value?.amount! + '', receiver: proposal.value?.receiver!
     });
 
     const s: { proposalId: string; publicKey58: string; sign: string } = {

@@ -6,11 +6,17 @@ import {
   Mina,
   PrivateKey,
   PublicKey,
+  Signature,
   UInt32,
   UInt64,
   VerificationKey,
 } from "snarkyjs";
-import { MultiSigZkapp, ApproverHashes, Proposal } from "zk-multi-sig";
+import {
+  MultiSigZkapp,
+  ApproverHashes,
+  Proposal,
+  ProposalWithSigns,
+} from "zk-multi-sig";
 // import ZkappWorkerClient from "../zkapp/zkappWorkerClient";
 
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
@@ -161,7 +167,7 @@ export default function () {
     desc: string;
     amount: string;
     receiver: string;
-  }) => {
+  }): Proposal => {
     const tempContractAddress = PublicKey.fromBase58(contractAddress);
     const tempContractNonce = UInt32.from(contractNonce);
     const tempAmount = UInt64.from(mina2Nano(amount));
@@ -173,6 +179,21 @@ export default function () {
       amount: tempAmount,
       receiver: tempReceiver,
     });
+  };
+
+  const createProposalWithSigns = (value: {
+    proposal: Proposal;
+    approvers: PublicKey[];
+    signs: Signature[];
+  }): ProposalWithSigns => {
+    const ps = ProposalWithSigns.create(
+      value.proposal,
+      value.approvers,
+      value.signs
+    );
+    ps.padding();
+
+    return ps;
   };
 
   const getProposalFields = (value: {
@@ -243,6 +264,32 @@ export default function () {
     return hash;
   };
 
+  const sendAssets = async (p: ProposalWithSigns) => {
+    const transactionFee = 100_000_000;
+    let transaction = await Mina.transaction(
+      { feePayerKey: zkappState.value.signerPrivateKey!, fee: transactionFee },
+      () => {
+        zkappState.value.zkApp!.sendAssets(p);
+      }
+    );
+    console.log("proving the transaction...");
+    await transaction.prove();
+
+    console.log("Sending the transaction...");
+    const res = await transaction.send();
+    const hash = res.hash(); // This will change in a future version of SnarkyJS
+    if (hash == null) {
+      console.log("error sending transaction (see above)");
+    } else {
+      console.log(
+        "See deploy transaction at",
+        "https://berkeley.minaexplorer.com/transaction/" + hash
+      );
+    }
+
+    return hash;
+  };
+
   return {
     zkappState,
     initZkappInstance,
@@ -261,5 +308,7 @@ export default function () {
     createApproverHashes,
     createProposal,
     getProposalFields,
+    sendAssets,
+    createProposalWithSigns,
   };
 }

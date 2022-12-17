@@ -4,7 +4,7 @@
     <div class="operate">
 
         <div class="left">
-            <n-button type="info" style="margin-right: 5px" ghost @click="removeLoading">
+            <n-button type="info" style="margin-right: 5px" ghost @click="openCreateWalletModal">
                 Create New Wallet
             </n-button>
 
@@ -227,52 +227,20 @@
 </template>
   
 <script setup lang="ts">
-import { DataTableColumns, FormInst, NButton, useMessage } from 'naive-ui';
-import type { MessageReactive } from 'naive-ui';
+import { DataTableColumns, FormInst, NButton } from 'naive-ui';
 import { PrivateKey, PublicKey, UInt32 } from 'snarkyjs';
+import { STORAGE_KEY_WALLET_CONF } from '../common/constant';
+import type { Proposal, WalletConfJSON } from '../common/types';
 
-const message = useMessage();
-let messageReactive: MessageReactive | null = null;
-const removeLoading = () => {
-    setTimeout(() => {
-        if (messageReactive) {
-            messageReactive.destroy();
-            messageReactive = null;
-        }
-    }, 3000);
-};
-const createLoading = (msg?: string) => {
-    if (!messageReactive) {
-        if (msg) {
-            messageReactive = message.loading(msg, {
-                duration: 0
-            });
-        } else {
-            messageReactive = message.loading("Please wait", {
-                duration: 0
-            });
-        }
-
-    }
-};
-
-const { isEmptyStr, nano2Mina, mina2Nano } = useUtils();
+const { isEmptyStr, nano2Mina, mina2Nano,
+    message, createLoading, removeLoading } = useUtils();
 const { zkappState, getAccount, initZkappInstance,
     compileContract, deployWallet, getAccountJSON,
-    createApproverHashes,
-    getApproverHashes, getApproverThreshold } = useZkapp();
+    createApproverHashes, getApproverHashes, getApproverThreshold } = useZkapp();
 
 const addBtnDisabled = ref<boolean>(false);
 const createBtnDisabled = ref<boolean>(false);
 const createProposalBtnDisabled = ref<boolean>(false);
-
-const STORAGE_KEY_WALLET_CONF = "walletConfig";
-
-type WalletConfJSON = {
-    walletName: string | null;
-    walletAddress: string;
-    owners: { name: string | null; address: string }[];
-};
 
 // const walletOptions = [
 //     {
@@ -295,7 +263,7 @@ const segmented = {
 };
 
 const { data: proposals, refresh: proposalListRefresh } = await useFetch('/api/getProposals', {
-    method: 'GET', params: { contractAddress: "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y" }, pick: ['data']
+    method: 'GET', params: { contractAddress: zkappState.value.walletPublicKey58 }, pick: ['data']
 });
 
 console.log("proposals value: ", proposals.value);
@@ -303,11 +271,12 @@ console.log("proposals value: ", proposals.value);
 const updateSetting = () => {
     message.info("Under development");
 };
+
 const createProposal = async () => {
-    // if (zkappState.value.walletPublicKey58 == null) {
-    //     message.error("Please add wallet or create wallet first");
-    //     return;
-    // }
+    if (zkappState.value.walletPublicKey58 == null) {
+        message.error("Please add wallet or create wallet first");
+        return;
+    }
     createProposalBtnDisabled.value = true;
     createLoading("Please wait...");
     type ProposalValue = {
@@ -330,10 +299,9 @@ const createProposal = async () => {
         return;
     }
 
-    // for test
     const p: ProposalValue = {
-        contractAddress: "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y",
-        contractNonce: 2,
+        contractAddress: zkappState.value.walletPublicKey58,
+        contractNonce: zkappState.value.walletNonce!,
         desc: desc!,
         amount: amount + "",
         receiver: receiver!
@@ -435,18 +403,18 @@ const createWallet = async () => {
     createStatusForBegin();
     if (isEmptyStr(createWalletModel.value.walletName)) {
         message.error("Please input wallet name");
-        addStatusForDone();
+        createStatusForDone();
         return;
     }
 
     if (isEmptyStr(createWalletModel.value.ownerName1)) {
         message.error("Please input owner name 1");
-        addStatusForDone();
+        createStatusForDone();
         return;
     }
     if (isEmptyStr(createWalletModel.value.ownerAddress1)) {
         message.error("Please input owner address 1");
-        addStatusForDone();
+        createStatusForDone();
         return;
     }
 
@@ -484,7 +452,7 @@ const createWallet = async () => {
     zkappState.value.walletPublicKey = zkAppPublicKey;
     zkappState.value.approvers = walletConf.owners;
     initZkappInstance(zkAppPublicKey58!);
-    addStatusForDone();
+    createStatusForDone();
 
     let vk: { data: string; hash: string } | null = null;
     if (!zkappState.value.hasBeenCompiled) {
@@ -651,16 +619,6 @@ const addWallet = async () => {
 
 
 const pagination = false;
-type Proposal = {
-    id: number;
-    desc: string;
-    amount: number;
-    receiver: string;
-    contractAddress: string;
-    contractNonce: number;
-    signedNum: number;
-};
-
 
 
 // const proposalData: Proposal[] = [
@@ -687,10 +645,6 @@ let createColumns = ({
         {
             title: 'Title',
             key: 'desc',
-            // width: 200,
-            // ellipsis: {
-            //     tooltip: true
-            // }
         },
         {
             title: 'Amount(mina)',
@@ -745,13 +699,6 @@ let columns = createColumns({
         navigateTo(`/proposal/${row.id}`);
     }
 });
-
-// let address = ref('');
-// const genAddress = () => {
-//     let prikey = PrivateKey.random();
-//     let pubKey = prikey.toPublicKey();
-//     address.value = pubKey.toBase58();
-// }
 
 </script>
 

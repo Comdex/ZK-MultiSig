@@ -49,7 +49,7 @@ interface ProposalSign extends Model {
   sign: string;
 }
 
-const ProposalSignModel = sequelize.define<Proposal>("ProposalSign", {
+const ProposalSignModel = sequelize.define<ProposalSign>("ProposalSign", {
   id: {
     primaryKey: true,
     autoIncrement: true,

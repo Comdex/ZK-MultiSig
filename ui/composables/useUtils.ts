@@ -1,4 +1,33 @@
+import { MessageReactive, useMessage } from "naive-ui";
+
 export default function () {
+  const message = useMessage();
+
+  let messageReactive: MessageReactive | null = null;
+
+  const removeLoading = () => {
+    setTimeout(() => {
+      if (messageReactive) {
+        messageReactive.destroy();
+        messageReactive = null;
+      }
+    }, 3000);
+  };
+
+  const createLoading = (msg?: string) => {
+    if (!messageReactive) {
+      if (msg) {
+        messageReactive = message.loading(msg, {
+          duration: 0,
+        });
+      } else {
+        messageReactive = message.loading("Please wait", {
+          duration: 0,
+        });
+      }
+    }
+  };
+
   const sliceAddress = (address: string | null, sliceLength: number = 5) =>
     address
       ? `${address.slice(0, sliceLength)}...${address.slice(-sliceLength)}`
@@ -22,5 +51,8 @@ export default function () {
     nano2Mina,
     mina2Nano,
     isEmptyStr,
+    createLoading,
+    removeLoading,
+    message,
   };
 }

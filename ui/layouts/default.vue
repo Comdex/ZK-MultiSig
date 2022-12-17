@@ -33,7 +33,7 @@
 
         <div class="footer">
             <div v-if="zkappState.walletPublicKey58 == null" class="desc">
-                {{ ZKAPP_URL }}
+                {{ runtimeConfig.public.zkAppUrl }}
             </div>
 
             <div v-else class="wallet-desc">
@@ -52,7 +52,7 @@
                 </div>
 
                 <div class="website">
-                    {{ ZKAPP_URL }}
+                    {{ runtimeConfig.public.zkAppUrl }}
                 </div>
             </div>
 
@@ -87,15 +87,17 @@
 </template>
 
 <script setup lang="ts">
-import { useMessage } from 'naive-ui';
-import { PrivateKey } from 'snarkyjs';
+import { PrivateKey, PublicKey } from 'snarkyjs';
+import { WalletConfJSON } from '~~/common/types';
+import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF } from '../common/constant';
 
-const message = useMessage();
-const { sliceAddress, nano2Mina } = useUtils();
-const { zkappState, loadSnarkyJS, loadContract, setActiveInstanceToBerkeley, getAccountJSON } = useZkapp();
+const { sliceAddress, nano2Mina, message } = useUtils();
+const { zkappState, loadSnarkyJS, loadContract,
+    setActiveInstanceToBerkeley, getAccountJSON,
+    getApproverHashes, getApproverThreshold,
+    initZkappInstance } = useZkapp();
+const runtimeConfig = useRuntimeConfig();
 
-const ZKAPP_URL = "multisig.zkapps.xyz";
-const STORAGE_KEY_SIGNER_PRIVATEKEY = "signerPrivateKey";
 
 const connectBodyStyle = {
     'width': '600px',
@@ -170,6 +172,31 @@ onMounted(async () => {
     if (signerPrivateKeyStr) {
         console.log("Read signer key from localStorage");
         setSignerKey(signerPrivateKeyStr);
+    }
+
+    const walletConfStr = window.localStorage.getItem(STORAGE_KEY_WALLET_CONF);
+    if (walletConfStr != null) {
+        try {
+            const wc: WalletConfJSON = JSON.parse(walletConfStr);
+            zkappState.value.walletName = wc.walletName;
+            zkappState.value.walletPublicKey58 = wc.walletAddress;
+            zkappState.value.approvers = wc.owners;
+
+            zkappState.value.walletPublicKey = PublicKey.fromBase58(wc.walletAddress);
+
+            initZkappInstance(wc.walletAddress);
+            const accountJson = await getAccountJSON(wc.walletAddress);
+            zkappState.value.walletBalance = nano2Mina(accountJson?.balance!).toString();
+            zkappState.value.walletNonce = accountJson?.nonce!;
+
+            zkappState.value.approverHashes = getApproverHashes();
+            zkappState.value.approverThreshold = Number(getApproverThreshold().toString());
+
+            console.log("load local wallet config done");
+        } catch (err) {
+            console.error(err);
+        }
+
     }
 
     // if (!zkappState.value.hasBeenSetup) {
