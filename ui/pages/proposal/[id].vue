@@ -207,6 +207,10 @@ const addSign = async () => {
 
     addSignBtnDisabled.value = false;
     if (res.value === "success") {
+        proposal.value = {
+            ...proposal.value,
+            signedNum: proposal.value?.signedNum! + 1
+        } as Proposal;
         message.success("Add signatrue success");
         removeLoading();
     } else {

@@ -281,10 +281,12 @@ watch(currentWalletAddress, async (newWalletAddress) => {
 onMounted(async () => {
     console.log("index onMounted");
     console.log("currentWalletAddress update");
+    createLoading("loading data...");
     const { data: res } = await useFetch('/api/getProposals', {
         method: 'GET', params: { contractAddress: currentWalletAddress.value }, pick: ['data']
     });
     proposals.value = res.value as unknown as Proposal[];
+    removeLoading();
     console.log("proposals value: ", proposals.value);
 });
 

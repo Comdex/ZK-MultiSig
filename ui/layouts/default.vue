@@ -52,8 +52,14 @@
                         Balance: {{ zkappState.walletBalance }} mina
                     </n-tag>
 
-                    <n-tag v-if="zkappState.walletNonce != null" :bordered="false" type="success" size="large" round>
+                    <n-tag v-if="zkappState.walletNonce != null" :bordered="false" type="success" size="large" round
+                        style="margin-right: 12px">
                         Nonce: {{ zkappState.walletNonce }}
+                    </n-tag>
+
+                    <n-tag v-if="zkappState.approverThreshold != null" :bordered="false" type="success" size="large"
+                        round>
+                        Threshold: {{ zkappState.approverThreshold }}
                     </n-tag>
                 </div>
 
