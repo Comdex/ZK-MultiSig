@@ -114,6 +114,7 @@ export default function () {
   };
 
   const getApproverHashes = () => {
+    console.log("approverHashes address: ", zkappState.value.zkApp?.address);
     const approverHashes = zkappState.value.zkApp!.approverHashes.get();
     return approverHashes;
   };
