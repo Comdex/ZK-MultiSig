@@ -1,8 +1,10 @@
 import { Sequelize, Model, DataTypes } from "sequelize";
 
+const runtimeConfig = useRuntimeConfig();
+
 export const sequelize = new Sequelize({
   dialect: "sqlite",
-  storage: "./db.sqlite",
+  storage: runtimeConfig.dbPath,
 });
 
 interface Proposal extends Model {
