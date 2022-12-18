@@ -37,9 +37,9 @@ export default function () {
     return Number(m) / 1000_000_000;
   };
 
-  const mina2Nano = (m: number | string | bigint): bigint => {
+  const mina2Nano = (m: number | string | bigint): number => {
     //return BigInt(m) * BigInt(10) ** BigInt(9);
-    return BigInt(m) * 1000_000_000n;
+    return Number(m) * 1000_000_000;
   };
 
   const isEmptyStr = (str: string | null): boolean => {

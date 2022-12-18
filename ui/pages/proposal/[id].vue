@@ -78,12 +78,14 @@
 </template>
 
 <script setup lang="ts">
+import { useDialog } from 'naive-ui';
 import { PublicKey, Signature } from 'snarkyjs';
 import type { Proposal, ProposalSign } from '../../common/types';
 const route = useRoute();
 const { zkappState, getProposalFields, createProposal,
     createProposalWithSigns, sendAssets, refreshWalletState, refreshSignerState } = useZkapp();
 const { createLoading, removeLoading, message } = useUtils();
+const dialog = useDialog();
 
 const proposalId = route.params.id;
 console.log("route proposalId: ", proposalId);
@@ -124,6 +126,10 @@ const sendProposal = async () => {
         message.error("The number of signatures has not yet met the threshold");
         return;
     }
+    if (Number(zkappState.value.signerBalance) < 0.3) {
+        message.error("The connected signer wallet does not have enough balance to pay the transaction fee");
+        return;
+    }
     sendBtnDisabled.value = true;
     createLoading();
 
@@ -142,11 +148,25 @@ const sendProposal = async () => {
     const approvers = signs.value?.map((s) => PublicKey.fromBase58(s.publicKey58));
     const signatrues = signs.value?.map((s) => Signature.fromJSON(JSON.parse(s.sign)));
     const ps = await createProposalWithSigns({ proposal: p, approvers: approvers!, signs: signatrues! });
-    let hash = await sendAssets(ps);
+    try {
+        const hash = await sendAssets(ps);
+        dialog.success({
+            title: 'Success',
+            content: `
+Propsal transaction sent.
+
+Your wallet state will be updated
+as soon as the transaction is included in a block:
+https://berkeley.minaexplorer.com/transaction/${hash}
+`,
+        });
+    } catch (err) {
+        console.error(err);
+        message.error("An error occurred while submitting the transaction to the network: " + err);
+    }
 
     removeLoading();
     sendBtnDisabled.value = false;
-    message.info(`The transaction is sent successfully, hash: ${hash}`);
 };
 
 const addSign = async () => {

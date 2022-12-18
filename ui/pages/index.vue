@@ -245,7 +245,7 @@
 </template>
   
 <script setup lang="ts">
-import { DataTableColumns, FormInst, NButton } from 'naive-ui';
+import { DataTableColumns, FormInst, NButton, useDialog } from 'naive-ui';
 import { PrivateKey, PublicKey, UInt32 } from 'snarkyjs';
 import { STORAGE_KEY_WALLET_CONF } from '../common/constant';
 import type { Proposal, WalletConfJSON } from '../common/types';
@@ -253,23 +253,29 @@ import type { Proposal, WalletConfJSON } from '../common/types';
 const { isEmptyStr, nano2Mina,
     message, createLoading, removeLoading } = useUtils();
 const { zkappState, currentWalletAddress, getAccount, initZkappInstance,
-    compileContract, deployWallet, getAccountJSON,
+    compileContract, deployWallet, getAccountJSON, refreshWalletState,
     createApproverHashes, getApproverHashes, getApproverThreshold } = useZkapp();
+const dialog = useDialog();
 
 const addBtnDisabled = ref<boolean>(false);
 const createBtnDisabled = ref<boolean>(false);
 const createProposalBtnDisabled = ref<boolean>(false);
 const compileWalletBtnDisabled = ref<boolean>(false);
 
+
 let proposals = ref<Proposal[]>([]);
 
-watch(currentWalletAddress, async (newWalletAddress) => {
-    console.log("currentWalletAddress update");
+const refreshProposals = async (walletAddress: string) => {
     const { data: res } = await useFetch('/api/getProposals', {
-        method: 'GET', params: { contractAddress: newWalletAddress }, pick: ['data']
+        method: 'GET', params: { contractAddress: walletAddress }, pick: ['data']
     });
     proposals.value = res.value as unknown as Proposal[];
     console.log("proposals value: ", proposals.value);
+};
+
+watch(currentWalletAddress, async (newWalletAddress) => {
+    console.log("currentWalletAddress update");
+    await refreshProposals(newWalletAddress!);
 });
 
 onMounted(async () => {
@@ -321,6 +327,16 @@ const createProposal = async () => {
         message.error("Please add wallet or create wallet first");
         return;
     }
+    if (zkappState.value.signerPublicKey58 == null) {
+        message.error("Please connect signer wallet first");
+        return;
+    }
+
+    if (!zkappState.value.approverHashes?.isApprover(zkappState.value.signerPublicKey!)) {
+        message.error("The currently connected signer wallet is not the owner of the multi wallet");
+        return;
+    }
+
     createProposalBtnDisabled.value = true;
     createLoading("Please wait...");
     type ProposalValue = {
@@ -357,6 +373,7 @@ const createProposal = async () => {
     createProposalBtnDisabled.value = false;
     if (res.value === "success") {
         message.success("Create proposal success");
+        await refreshProposals(zkappState.value.walletPublicKey58!);
         removeLoading();
         showCreateProposalModal.value = false;
     } else {
@@ -509,16 +526,29 @@ const createWallet = async () => {
         removeLoading();
     }
 
-    addStatusForBegin();
     createLoading("Waiting for wallet to deploy...");
-    let hash = await deployWallet({ zkAppPrivateKey, verificationKey: vk!, approvers: approverPublicKeys, approverThreshold });
+    createBtnDisabled.value = true;
+    try {
+        const hash = await deployWallet({ zkAppPrivateKey, verificationKey: vk!, approvers: approverPublicKeys, approverThreshold });
+        console.log("deploy transaction hash: " + hash);
+        // update wallet state in 5 minutes
+        setTimeout(async () => { await refreshWalletState(); }, 300000);
+        dialog.success({
+            title: 'Success',
+            content: `
+The wallet deploy transaction has been submitted to the network.
+Your wallet will be available as soon as the transaction is included in a block:
+https://berkeley.minaexplorer.com/transaction/${hash}
+`,
+        });
+    } catch (err) {
+        console.error(err);
+        message.error("An error occurred while submitting the transaction to the network: " + err);
+    }
+
     removeLoading();
-
-    const account = await getAccountJSON(zkappState.value.walletPublicKey58!);
-    zkappState.value.walletNonce = account?.nonce!;
-    zkappState.value.walletBalance = nano2Mina(account?.balance!).toString();
-    message.info("deploy transaction hash: " + hash);
-
+    createBtnDisabled.value = false;
+    await refreshProposals(zkappState.value.walletPublicKey58!);
 };
 
 
@@ -659,11 +689,11 @@ const addWallet = async () => {
         createLoading("Waiting for the contract to compile, this may take a few minutes...");
         await compileContract();
         removeLoading();
+        message.info("Compile zk contract success");
     }
 
-    const account = await getAccountJSON(zkappState.value.walletPublicKey58!);
-    zkappState.value.walletNonce = account?.nonce!;
-    zkappState.value.walletBalance = nano2Mina(account?.balance!).toString();
+    await refreshWalletState();
+    await refreshProposals(zkappState.value.walletPublicKey58!);
 
 };
 
