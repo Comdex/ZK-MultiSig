@@ -106,7 +106,7 @@ import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF, APP_URL } from 
 
 const { sliceAddress, nano2Mina, message } = useUtils();
 const { zkappState, currentWalletAddress, loadSnarkyJS, loadContract,
-    setActiveInstanceToBerkeley, getAccountJSON,
+    setActiveInstanceToBerkeley, getAccountJSON, getAccount,
     getApproverHashes, getApproverThreshold,
     initZkappInstance } = useZkapp();
 
@@ -203,6 +203,7 @@ onMounted(async () => {
         try {
             const wc: WalletConfJSON = JSON.parse(walletConfStr);
             console.log("wallet config: ", wc);
+
             zkappState.value.walletName = wc.walletName;
             zkappState.value.walletPublicKey58 = wc.walletAddress;
             currentWalletAddress.value = wc.walletAddress;

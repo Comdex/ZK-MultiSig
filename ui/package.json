@@ -1,7 +1,8 @@
 {
   "private": true,
   "scripts": {
-    "build": "cross-env NODE_OPTIONS=\"--max_old_space_size=5096\" nuxt build",
+    "build": "nuxt build",
+    "build:onserver": "cross-env NODE_OPTIONS=\"--max_old_space_size=8192\" nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
