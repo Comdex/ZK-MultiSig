@@ -6,3 +6,5 @@ The Project consists of the following sub projects.
 
 - `contracts` - snarkyjs contract.
 - `ui` - frontend and backend server.
+
+Demo: [https://multisig.zkapps.xyz](https://multisig.zkapps.xyz)
