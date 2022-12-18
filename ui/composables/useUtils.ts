@@ -33,13 +33,13 @@ export default function () {
       ? `${address.slice(0, sliceLength)}...${address.slice(-sliceLength)}`
       : null;
 
-  const nano2Mina = (m: number | string | bigint): bigint => {
-    return BigInt(m) / 1000000000n;
+  const nano2Mina = (m: number | string | bigint): number => {
+    return Number(m) / 1000_000_000;
   };
 
   const mina2Nano = (m: number | string | bigint): bigint => {
     //return BigInt(m) * BigInt(10) ** BigInt(9);
-    return BigInt((m as number) * 1000000000);
+    return BigInt(m) * 1000_000_000n;
   };
 
   const isEmptyStr = (str: string | null): boolean => {

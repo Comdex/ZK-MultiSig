@@ -18,7 +18,10 @@
                 <div v-else>
                     <n-tag type="info" class="signer" @click="copySignerPublicKey58">
                         signer:{{ sliceAddress(zkappState.signerPublicKey58) }}
+                        <template v-if="zkappState.signerBalance != null">({{ zkappState.signerBalance }}
+                            mina)</template>
                     </n-tag>
+
 
                     <n-button @click="disconnectWallet">Disconnect</n-button>
                 </div>
@@ -38,17 +41,18 @@
 
             <div v-else class="wallet-desc">
                 <div class="wallet">
-                    <n-tag @click="copyWalletPublicKey58" :bordered="false" type="success" size="large" round
-                        style="margin-right: 12px">
+                    <n-tag v-if="zkappState.walletPublicKey58 != null" @click="copyWalletPublicKey58" :bordered="false"
+                        type="success" size="large" round style="margin-right: 12px">
                         Wallet: {{ sliceAddress(zkappState.walletPublicKey58) }}
                         ({{ zkappState.walletName }})
                     </n-tag>
 
-                    <n-tag :bordered="false" type="success" size="large" round style="margin-right: 12px">
+                    <n-tag v-if="zkappState.walletBalance != null" :bordered="false" type="success" size="large" round
+                        style="margin-right: 12px">
                         Balance: {{ zkappState.walletBalance }} mina
                     </n-tag>
 
-                    <n-tag :bordered="false" type="success" size="large" round>
+                    <n-tag v-if="zkappState.walletNonce != null" :bordered="false" type="success" size="large" round>
                         Nonce: {{ zkappState.walletNonce }}
                     </n-tag>
                 </div>
@@ -106,8 +110,7 @@ import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF, APP_URL } from 
 
 const { sliceAddress, nano2Mina, message } = useUtils();
 const { zkappState, currentWalletAddress, loadSnarkyJS, loadContract,
-    setActiveInstanceToBerkeley, getAccountJSON, getAccount,
-    getApproverHashes, getApproverThreshold,
+    setActiveInstanceToBerkeley, refreshWalletState, refreshSignerState,
     initZkappInstance } = useZkapp();
 
 
@@ -139,7 +142,7 @@ const setSignerKey = (signerPrivateKey58Str: string) => {
     }
 };
 
-const importPriKey = () => {
+const importPriKey = async () => {
     if (signerPrivateKey58.value == null) {
         message.error("Please input the mina private key you want to connect");
         return;
@@ -149,6 +152,8 @@ const importPriKey = () => {
     signerPrivateKey58.value = null;
     showConnectWalletModal.value = false;
     message.info("Connect wallet success");
+
+    await refreshSignerState();
 };
 
 const disconnectWallet = () => {
@@ -208,16 +213,12 @@ onMounted(async () => {
             zkappState.value.walletPublicKey58 = wc.walletAddress;
             currentWalletAddress.value = wc.walletAddress;
             zkappState.value.approvers = wc.owners;
-
             zkappState.value.walletPublicKey = PublicKey.fromBase58(wc.walletAddress);
 
             initZkappInstance(wc.walletAddress);
-            const accountJson = await getAccountJSON(wc.walletAddress);
-            zkappState.value.walletBalance = nano2Mina(accountJson?.balance!).toString();
-            zkappState.value.walletNonce = accountJson?.nonce!;
 
-            zkappState.value.approverHashes = getApproverHashes();
-            zkappState.value.approverThreshold = Number(getApproverThreshold().toString());
+            await refreshWalletState();
+            await refreshSignerState();
 
             console.log("load local wallet config done");
         } catch (err) {
@@ -292,7 +293,7 @@ onMounted(async () => {
     .signer {
         font-size: 15px;
         font-weight: bold;
-        margin-right: 10px;
+        margin-right: 12px;
     }
 }
 

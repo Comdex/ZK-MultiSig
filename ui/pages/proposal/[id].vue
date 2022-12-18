@@ -82,7 +82,7 @@ import { PublicKey, Signature } from 'snarkyjs';
 import type { Proposal, ProposalSign } from '../../common/types';
 const route = useRoute();
 const { zkappState, getProposalFields, createProposal,
-    createProposalWithSigns, sendAssets } = useZkapp();
+    createProposalWithSigns, sendAssets, refreshWalletState, refreshSignerState } = useZkapp();
 const { createLoading, removeLoading, message } = useUtils();
 
 const proposalId = route.params.id;
@@ -101,6 +101,8 @@ onMounted(async () => {
 
     proposal.value = res.value?.data?.proposal as unknown as Proposal;
     signs.value = res.value?.data?.signs as ProposalSign[];
+    refreshWalletState();
+    refreshSignerState();
 });
 
 
@@ -131,7 +133,7 @@ const sendProposal = async () => {
         removeLoading();
         return;
     }
-    const p = createProposal({
+    const p = await createProposal({
         contractAddress: zkappState.value.walletPublicKey58!,
         contractNonce: zkappState.value.walletNonce!, desc: proposal.value?.desc!,
         amount: proposal.value?.amount! + '', receiver: proposal.value?.receiver!
@@ -139,7 +141,7 @@ const sendProposal = async () => {
 
     const approvers = signs.value?.map((s) => PublicKey.fromBase58(s.publicKey58));
     const signatrues = signs.value?.map((s) => Signature.fromJSON(JSON.parse(s.sign)));
-    const ps = createProposalWithSigns({ proposal: p, approvers: approvers!, signs: signatrues! });
+    const ps = await createProposalWithSigns({ proposal: p, approvers: approvers!, signs: signatrues! });
     let hash = await sendAssets(ps);
 
     removeLoading();
@@ -164,7 +166,7 @@ const addSign = async () => {
         return;
     }
 
-    const fs = getProposalFields({
+    const fs = await getProposalFields({
         contractAddress: zkappState.value.walletPublicKey58!,
         contractNonce: zkappState.value.walletNonce!, desc: proposal.value?.desc!,
         amount: proposal.value?.amount! + '', receiver: proposal.value?.receiver!

@@ -1,7 +1,7 @@
-import { Stringifier } from "postcss";
 import {
   AccountUpdate,
   fetchAccount,
+  Field,
   isReady,
   Mina,
   PrivateKey,
@@ -9,9 +9,8 @@ import {
   Signature,
   UInt32,
   UInt64,
-  VerificationKey,
 } from "snarkyjs";
-import {
+import type {
   MultiSigZkapp,
   ApproverHashes,
   Proposal,
@@ -22,7 +21,7 @@ import {
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
 export default function () {
-  const { mina2Nano } = useUtils();
+  const { mina2Nano, nano2Mina } = useUtils();
 
   type ZkappState = {
     hasBeenSetup: boolean;
@@ -45,6 +44,7 @@ export default function () {
     signerPrivateKey: null | PrivateKey;
     signerPublicKey: null | PublicKey;
     signerPublicKey58: null | string;
+    signerBalance: null | string;
     // zkappWorkerClient: null | ZkappWorkerClient;
   };
 
@@ -74,6 +74,7 @@ export default function () {
       signerPrivateKey: null as null | PrivateKey,
       signerPublicKey: null as null | PublicKey,
       signerPublicKey58: null as null | string,
+      signerBalance: null as null | string,
       // zkappWorkerClient: null as null | ZkappWorkerClient,
     };
   });
@@ -113,19 +114,35 @@ export default function () {
     return await fetchAccount({ publicKey });
   };
 
-  const getApproverHashes = () => {
-    console.log("approverHashes address: ", zkappState.value.zkApp?.address);
-    const approverHashes = zkappState.value.zkApp!.approverHashes.get();
+  const getApproverHashes = async (): Promise<ApproverHashes> => {
+    console.log(
+      "approverHashes address: ",
+      zkappState.value.zkApp?.address.toBase58()
+    );
+    const { ApproverHashes } = await import("zk-multi-sig");
+    const appState = Mina.getAccount(zkappState.value.walletPublicKey!)
+      .appState!;
+    const approverHashes = ApproverHashes.fromFields(
+      appState.slice(0, ApproverHashes.sizeInFields()),
+      ApproverHashes.toAuxiliary()
+    );
+    //const approverHashes = zkappState.value.zkApp!.approverHashes.get();
     return approverHashes;
   };
 
   const getApproverThreshold = () => {
-    const approverThreshold = zkappState.value.zkApp!.approverThreshold.get();
+    const appState = Mina.getAccount(zkappState.value.walletPublicKey!)
+      .appState!;
+    const approverThreshold = UInt32.from(appState[4]);
+    //const approverThreshold = zkappState.value.zkApp!.approverThreshold.get();
     return approverThreshold;
   };
 
   const getLatestProposalHash = () => {
-    const latestProposalHash = zkappState.value.zkApp!.latestProposalHash.get();
+    const appState = Mina.getAccount(zkappState.value.walletPublicKey!)
+      .appState!;
+    const latestProposalHash = Field(appState[5]);
+    //const latestProposalHash = zkappState.value.zkApp!.latestProposalHash.get();
     return latestProposalHash;
   };
 
@@ -156,11 +173,12 @@ export default function () {
     return accountJSON;
   };
 
-  const createApproverHashes = (approvers: PublicKey[]) => {
+  const createApproverHashes = async (approvers: PublicKey[]) => {
+    const { ApproverHashes } = await import("zk-multi-sig");
     return ApproverHashes.createWithPadding(approvers);
   };
 
-  const createProposal = ({
+  const createProposal = async ({
     contractAddress,
     contractNonce,
     desc,
@@ -172,11 +190,12 @@ export default function () {
     desc: string;
     amount: string;
     receiver: string;
-  }): Proposal => {
+  }): Promise<Proposal> => {
     const tempContractAddress = PublicKey.fromBase58(contractAddress);
     const tempContractNonce = UInt32.from(contractNonce);
     const tempAmount = UInt64.from(mina2Nano(amount));
     const tempReceiver = PublicKey.fromBase58(receiver);
+    const { Proposal } = await import("zk-multi-sig");
     return Proposal.create({
       contractAddress: tempContractAddress,
       contractNonce: tempContractNonce,
@@ -186,11 +205,41 @@ export default function () {
     });
   };
 
-  const createProposalWithSigns = (value: {
+  const getProposalFields = async ({
+    contractAddress,
+    contractNonce,
+    desc,
+    amount,
+    receiver,
+  }: {
+    contractAddress: string;
+    contractNonce: number;
+    desc: string;
+    amount: string;
+    receiver: string;
+  }) => {
+    const tempContractAddress = PublicKey.fromBase58(contractAddress);
+    const tempContractNonce = UInt32.from(contractNonce);
+    const tempAmount = UInt64.from(mina2Nano(amount));
+    const tempReceiver = PublicKey.fromBase58(receiver);
+    const { Proposal } = await import("zk-multi-sig");
+    const p = Proposal.create({
+      contractAddress: tempContractAddress,
+      contractNonce: tempContractNonce,
+      desc,
+      amount: tempAmount,
+      receiver: tempReceiver,
+    });
+
+    return Proposal.toFields(p);
+  };
+
+  const createProposalWithSigns = async (value: {
     proposal: Proposal;
     approvers: PublicKey[];
     signs: Signature[];
-  }): ProposalWithSigns => {
+  }): Promise<ProposalWithSigns> => {
+    const { ProposalWithSigns } = await import("zk-multi-sig");
     const ps = ProposalWithSigns.create(
       value.proposal,
       value.approvers,
@@ -199,18 +248,6 @@ export default function () {
     ps.padding();
 
     return ps;
-  };
-
-  const getProposalFields = (value: {
-    contractAddress: string;
-    contractNonce: number;
-    desc: string;
-    amount: string;
-    receiver: string;
-  }) => {
-    const p = createProposal(value);
-
-    return Proposal.toFields(p);
   };
 
   const proveUpdateTransaction = async () => {
@@ -297,6 +334,35 @@ export default function () {
     return hash;
   };
 
+  const refreshWalletState = async () => {
+    if (zkappState.value.walletPublicKey58 != null) {
+      console.log("refresh multi-wallet state");
+      const accountJson = await getAccountJSON(
+        zkappState.value.walletPublicKey58
+      );
+      zkappState.value.walletBalance = nano2Mina(
+        accountJson?.balance!
+      ).toString();
+      zkappState.value.walletNonce = accountJson?.nonce!;
+      zkappState.value.approverHashes = await getApproverHashes();
+      zkappState.value.approverThreshold = Number(
+        getApproverThreshold().toString()
+      );
+    }
+  };
+
+  const refreshSignerState = async () => {
+    if (zkappState.value.signerPublicKey58 != null) {
+      console.log("refresh signer state");
+      const accountJson = await getAccountJSON(
+        zkappState.value.signerPublicKey58!
+      );
+      zkappState.value.signerBalance = nano2Mina(
+        accountJson?.balance!
+      ).toString();
+    }
+  };
+
   return {
     zkappState,
     currentWalletAddress,
@@ -318,5 +384,7 @@ export default function () {
     getProposalFields,
     sendAssets,
     createProposalWithSigns,
+    refreshWalletState,
+    refreshSignerState,
   };
 }

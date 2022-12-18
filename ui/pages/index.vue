@@ -250,7 +250,7 @@ import { PrivateKey, PublicKey, UInt32 } from 'snarkyjs';
 import { STORAGE_KEY_WALLET_CONF } from '../common/constant';
 import type { Proposal, WalletConfJSON } from '../common/types';
 
-const { isEmptyStr, nano2Mina, mina2Nano,
+const { isEmptyStr, nano2Mina,
     message, createLoading, removeLoading } = useUtils();
 const { zkappState, currentWalletAddress, getAccount, initZkappInstance,
     compileContract, deployWallet, getAccountJSON,
@@ -480,7 +480,7 @@ const createWallet = async () => {
         approvers.push({ name: createWalletModel.value.ownerName4, address: createWalletModel.value.ownerAddress4! });
     }
     let approverPublicKeys: PublicKey[] = approvers.map(v => PublicKey.fromBase58(v.address));
-    zkappState.value.approverHashes = createApproverHashes(approverPublicKeys);
+    zkappState.value.approverHashes = await createApproverHashes(approverPublicKeys);
 
     // generate keys;
     const zkAppPrivateKey = PrivateKey.random();
@@ -650,7 +650,7 @@ const addWallet = async () => {
     zkappState.value.approvers = walletConf.owners;
     initZkappInstance(walletAddress!);
 
-    zkappState.value.approverHashes = getApproverHashes();
+    zkappState.value.approverHashes = await getApproverHashes();
     zkappState.value.approverThreshold = Number(getApproverThreshold().toBigint());
 
     addStatusForDone();
