@@ -1,0 +1,9 @@
+{
+    "name": "multisig-zkapp",
+    "script": "./.output/server/index.mjs", 
+    "error_file": "logs/app-err.log",
+    "out_file": "logs/app-out.log",
+    "env": {
+        "NITRO_PORT": "3069"
+    }
+}

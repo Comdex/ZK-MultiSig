@@ -12,8 +12,10 @@ export default defineNuxtConfig({
     dbPath: "./db.sqlite",
   },
 
-  // If you need to compile locally, you need to set sourcemap to false
-  sourcemap: false,
+  sourcemap: {
+    server: true,
+    client: false,
+  },
 
   vite: {
     build: { target: "esnext" },
