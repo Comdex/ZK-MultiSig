@@ -1,11 +1,10 @@
 import { useDB } from "../db";
 import { Identifier } from "sequelize";
 
+const { ProposalSignModel, ProposalModel } = useDB();
+
 export default defineEventHandler(async (event) => {
   const value = await readBody(event);
-
-  const { ProposalSignModel, ProposalModel } = useDB();
-
   try {
     let sign = await ProposalSignModel.create(value);
     if (sign == null) {

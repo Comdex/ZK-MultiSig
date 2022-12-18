@@ -1,10 +1,11 @@
 import { useDB } from "../db";
 
+const { ProposalModel } = useDB();
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const contractAddress = query.contractAddress;
 
-  const { ProposalModel } = useDB();
   try {
     let ps = await ProposalModel.findAll({ where: { contractAddress } });
     console.log("proposals: ", ps.length);

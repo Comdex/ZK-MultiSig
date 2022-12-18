@@ -8,12 +8,12 @@ export default defineNuxtConfig({
     strict: true,
   },
 
-  runtimeConfig: {
-    // Keys within public, will be also exposed to the client-side
-    public: {
-      zkAppUrl: "multisig.zkapps.xyz",
-    },
-  },
+  // runtimeConfig: {
+  //   // Keys within public, will be also exposed to the client-side
+  //   public: {
+  //     zkAppUrl: "multisig.zkapps.xyz",
+  //   },
+  // },
 
   vite: {
     build: { target: "esnext" },

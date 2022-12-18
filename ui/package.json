@@ -1,10 +1,11 @@
 {
   "private": true,
   "scripts": {
-    "build": "cross-env NODE_OPTIONS=\"--max_old_space_size=4096\" nuxt build",
+    "build": "cross-env NODE_OPTIONS=\"--max_old_space_size=5096\" nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "nprepare": "nuxt prepare",
     "preinstall": "cd ../contracts && npm unlink zk-multi-sig && npm install --registry=https://registry.npmmirror.com && npm run build && npm link",
     "postinstall": "npm link zk-multi-sig && nuxt prepare",
     "updatezkapp": "cd ../contracts && npm unlink zk-multi-sig && npm run build && npm link && cd ../ui && npm link zk-multi-sig && nuxt prepare"

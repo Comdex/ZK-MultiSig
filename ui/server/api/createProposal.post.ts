@@ -1,9 +1,10 @@
 import { useDB } from "../db";
 
+const { ProposalModel } = useDB();
+
 export default defineEventHandler(async (event) => {
   const proposalValue = await readBody(event);
 
-  const { ProposalModel } = useDB();
   let p = await ProposalModel.create(proposalValue);
   console.log("proposal result: ", p.toJSON());
   if (p == null) {

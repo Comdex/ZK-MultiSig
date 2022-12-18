@@ -33,7 +33,7 @@
 
         <div class="footer">
             <div v-if="zkappState.walletPublicKey58 == null" class="desc">
-                {{ runtimeConfig.public.zkAppUrl }}
+                {{ APP_URL }}
             </div>
 
             <div v-else class="wallet-desc">
@@ -55,7 +55,7 @@
 
                 <div class="website">
                     <NuxtLink to="/" style="color: gray; text-decoration:none">
-                        {{ runtimeConfig.public.zkAppUrl }}
+                        {{ APP_URL }}
                     </NuxtLink>
 
                 </div>
@@ -101,15 +101,14 @@
 
 <script setup lang="ts">
 import { PrivateKey, PublicKey } from 'snarkyjs';
-import { WalletConfJSON } from '~~/common/types';
-import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF } from '../common/constant';
+import { WalletConfJSON } from '../common/types';
+import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF, APP_URL } from '../common/constant';
 
 const { sliceAddress, nano2Mina, message } = useUtils();
 const { zkappState, currentWalletAddress, loadSnarkyJS, loadContract,
     setActiveInstanceToBerkeley, getAccountJSON,
     getApproverHashes, getApproverThreshold,
     initZkappInstance } = useZkapp();
-const runtimeConfig = useRuntimeConfig();
 
 
 const connectBodyStyle = {

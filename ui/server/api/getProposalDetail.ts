@@ -1,11 +1,12 @@
 import { Identifier } from "sequelize";
 import { useDB } from "../db";
 
+const { ProposalModel, ProposalSignModel } = useDB();
+
 export default defineEventHandler(async (event) => {
   const query = getQuery(event);
   const proposalId = query.proposalId as Identifier;
 
-  const { ProposalModel, ProposalSignModel } = useDB();
   try {
     let proposal = await ProposalModel.findByPk(proposalId);
     console.log("proposal: ", proposal?.toJSON());
