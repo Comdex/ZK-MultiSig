@@ -436,11 +436,6 @@ const createWalletRules = {
         trigger: ['blur', 'input'],
         message: 'Please input ownerAddress1'
     },
-    threshold: {
-        required: true,
-        trigger: ['blur', 'input'],
-        message: 'Please input threshold'
-    },
 };
 const openCreateWalletModal = () => {
     if (zkappState.value.signerPrivateKey == null) {
@@ -505,34 +500,37 @@ const createWallet = async () => {
     const zkAppPrivateKey = PrivateKey.random();
     const zkAppPublicKey = zkAppPrivateKey.toPublicKey();
     const zkAppPublicKey58 = zkAppPublicKey.toBase58();
-    // save wallet conf
-    let walletConf: WalletConfJSON = {
-        walletName: createWalletModel.value.walletName as string,
-        walletAddress: zkAppPublicKey58,
-        owners: approvers,
-    };
 
-    window.localStorage.setItem(STORAGE_KEY_WALLET_CONF, JSON.stringify(walletConf));
-    zkappState.value.walletName = addWalletModel.value.walletName;
-    zkappState.value.walletPublicKey58 = zkAppPublicKey58;
-    currentWalletAddress.value = zkAppPublicKey58;
-    zkappState.value.walletPublicKey = zkAppPublicKey;
-    zkappState.value.approvers = walletConf.owners;
     initZkappInstance(zkAppPublicKey58!);
-    createStatusForDone();
 
     let vk: { data: string; hash: string } | null = null;
     if (!zkappState.value.hasBeenCompiled) {
-        createLoading("Waiting for the contract to compile, this may take a few minutes...");
         vk = await compileContract();
-        removeLoading();
+        message.info("wallet contract compile success");
     }
 
-    createLoading("Waiting for wallet to deploy...");
-    createBtnDisabled.value = true;
+    message.info("Waiting for wallet to deploy...");
     try {
         const hash = await deployWallet({ zkAppPrivateKey, verificationKey: vk!, approvers: approverPublicKeys, approverThreshold });
         console.log("deploy transaction hash: " + hash);
+
+        // save wallet conf
+        let walletConf: WalletConfJSON = {
+            walletName: createWalletModel.value.walletName as string,
+            walletAddress: zkAppPublicKey58,
+            owners: approvers,
+        };
+
+        window.localStorage.setItem(STORAGE_KEY_WALLET_CONF, JSON.stringify(walletConf));
+        zkappState.value.walletName = addWalletModel.value.walletName;
+        zkappState.value.walletPublicKey58 = zkAppPublicKey58;
+        currentWalletAddress.value = zkAppPublicKey58;
+        zkappState.value.walletPublicKey = zkAppPublicKey;
+        zkappState.value.approvers = walletConf.owners;
+        zkappState.value.walletBalance = 0 + "";
+        zkappState.value.walletNonce = 0;
+        zkappState.value.approverThreshold = createWalletModel.value.threshold!;
+
         // update wallet state in 5 minutes
         setTimeout(async () => { await refreshWalletState(); }, 300000);
         dialog.success({
@@ -548,8 +546,7 @@ https://berkeley.minaexplorer.com/transaction/${hash}
         message.error("An error occurred while submitting the transaction to the network: " + err);
     }
 
-    removeLoading();
-    createBtnDisabled.value = false;
+    createStatusForDone();
     await refreshProposals(zkappState.value.walletPublicKey58!);
 };
 
@@ -685,15 +682,11 @@ const addWallet = async () => {
     zkappState.value.approverHashes = await getApproverHashes();
     zkappState.value.approverThreshold = Number(getApproverThreshold().toBigint());
 
-    addStatusForDone();
-
     if (!zkappState.value.hasBeenCompiled) {
-        createLoading("Waiting for the contract to compile, this may take a few minutes...");
         await compileContract();
-        removeLoading();
         message.info("Compile zk contract success");
     }
-
+    addStatusForDone();
     await refreshWalletState();
     await refreshProposals(zkappState.value.walletPublicKey58!);
 
@@ -749,7 +742,7 @@ let createColumns = ({
             title: 'MeetThreshold',
             key: 'meetThreshold',
             render: (val) => {
-                if (val.signedNum > zkappState.value.approverThreshold!) {
+                if (val.signedNum >= zkappState.value.approverThreshold!) {
                     return 'Yes';
                 } else {
                     return 'No';
