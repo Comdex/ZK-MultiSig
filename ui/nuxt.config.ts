@@ -28,11 +28,10 @@ export default defineNuxtConfig({
   },
 
   vite: {
-    build: { target: "es2020" },
+    build: { target: "esnext" },
     optimizeDeps: {
       esbuildOptions: {
-        target: "es2020",
-        supported: { "top-level-await": true },
+        target: "esnext",
       },
 
       include:

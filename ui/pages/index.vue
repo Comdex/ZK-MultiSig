@@ -679,7 +679,7 @@ const addWallet = async () => {
     zkappState.value.approvers = walletConf.owners;
     initZkappInstance(walletAddress!);
 
-    zkappState.value.approverHashes = await getApproverHashes();
+    zkappState.value.approverHashes = getApproverHashes();
     zkappState.value.approverThreshold = Number(getApproverThreshold().toBigint());
 
     if (!zkappState.value.hasBeenCompiled) {

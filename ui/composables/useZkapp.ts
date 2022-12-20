@@ -1,7 +1,6 @@
 import {
   AccountUpdate,
   fetchAccount,
-  Field,
   isReady,
   Mina,
   PrivateKey,
@@ -114,35 +113,23 @@ export default function () {
     return await fetchAccount({ publicKey });
   };
 
-  const getApproverHashes = async (): Promise<ApproverHashes> => {
+  const getApproverHashes = () => {
     console.log(
       "approverHashes address: ",
       zkappState.value.zkApp?.address.toBase58()
     );
-    const { ApproverHashes } = await import("zk-multi-sig");
-    const appState = Mina.getAccount(zkappState.value.walletPublicKey!)
-      .appState!;
-    const approverHashes = ApproverHashes.fromFields(
-      appState.slice(0, ApproverHashes.sizeInFields()),
-      ApproverHashes.toAuxiliary()
-    );
-    //const approverHashes = zkappState.value.zkApp!.approverHashes.get();
+
+    const approverHashes = zkappState.value.zkApp!.approverHashes.get();
     return approverHashes;
   };
 
   const getApproverThreshold = () => {
-    const appState = Mina.getAccount(zkappState.value.walletPublicKey!)
-      .appState!;
-    const approverThreshold = UInt32.from(appState[4]);
-    //const approverThreshold = zkappState.value.zkApp!.approverThreshold.get();
+    const approverThreshold = zkappState.value.zkApp!.approverThreshold.get();
     return approverThreshold;
   };
 
   const getLatestProposalHash = () => {
-    const appState = Mina.getAccount(zkappState.value.walletPublicKey!)
-      .appState!;
-    const latestProposalHash = Field(appState[5]);
-    //const latestProposalHash = zkappState.value.zkApp!.latestProposalHash.get();
+    const latestProposalHash = zkappState.value.zkApp!.latestProposalHash.get();
     return latestProposalHash;
   };
 
@@ -344,7 +331,7 @@ export default function () {
         accountJson?.balance!
       ).toString();
       zkappState.value.walletNonce = accountJson?.nonce!;
-      zkappState.value.approverHashes = await getApproverHashes();
+      zkappState.value.approverHashes = getApproverHashes();
       zkappState.value.approverThreshold = Number(
         getApproverThreshold().toString()
       );

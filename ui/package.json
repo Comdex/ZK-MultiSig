@@ -5,11 +5,10 @@
     "build:onserver": "cross-env NODE_OPTIONS=\"--max_old_space_size=8192\" nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "clean": "nuxt cleanup",
     "preview": "nuxt preview",
     "nprepare": "nuxt prepare",
-    "preinstall": "cd ../contracts && npm unlink zk-multi-sig && npm install --registry=https://registry.npmmirror.com && npm run build && npm link",
-    "postinstall": "npm link zk-multi-sig && nuxt prepare",
-    "updatezkapp": "cd ../contracts && npm unlink zk-multi-sig && npm run build && npm link && cd ../ui && npm link zk-multi-sig && nuxt prepare"
+    "postinstall": "nuxt prepare"
   },
   "devDependencies": {
     "@css-render/vue3-ssr": "^0.15.11",
@@ -23,6 +22,7 @@
   "dependencies": {
     "sequelize": "^6.27.0",
     "snarkyjs": "^0.7.3",
+    "zk-multi-sig": "^0.1.1",
     "sqlite3": "^5.1.4"
   }
 }
