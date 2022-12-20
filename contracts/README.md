@@ -11,6 +11,7 @@ import { MultiSigZkapp } from "zk-multi-sig";
 
 export class MyOracle extends SmartContract {
 
+	// Note that you need to deal with signed data replay attacks yourself
 	@method
 	updateOraclePublicKey(permit: Permit, newPublicKey: PublicKey) {
 		const multiWallet = new MultiSigZkapp(walletAddress);
@@ -20,6 +21,21 @@ export class MyOracle extends SmartContract {
 		....
 	}
 }
+```
+
+## How can a third-party developer manually create a permit
+
+```typescript
+class MyData extends Struct({ id: Field, amount: UInt64 }) {}
+// Data that requires authorization
+const dataForAuth = { id: Field(1), amount: UInt64.from(1000000) };
+// Generate hash
+const dataHash = Poseidon.hash(Mydata.toFields(dataForAuth));
+const permit = Permit.create(dataHash);
+// Add some signatures. Note that the signature is a signature to the data hash,
+// not the data itself.
+permit.addSignWithPublicKey(signature1, signerPublicKey1);
+permit.addSignWithPublicKey(signature2, signerPublicKey2);
 ```
 
 ## How to build
