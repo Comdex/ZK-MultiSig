@@ -110,7 +110,7 @@ onMounted(async () => {
 
 
 const meetThreshold = computed(() => {
-    if (proposal.value?.signedNum! > zkappState.value.approverThreshold!) {
+    if (proposal.value?.signedNum! >= zkappState.value.approverThreshold!) {
         return "Yes";
     }
 
