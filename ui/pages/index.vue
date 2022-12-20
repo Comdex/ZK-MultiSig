@@ -151,6 +151,11 @@
                     @click="createWallet">
                     Create
                 </n-button>
+
+                <!-- <n-button type="success" style="margin-right: 5px" ghost :disabled="createBtnDisabled"
+                    @click="testCreateWallet">
+                    Input Test Params
+                </n-button> -->
             </div>
 
         </template>
@@ -162,7 +167,7 @@
         title="Add Existing Wallet" size="huge" :bordered="false" :segmented="segmented" :mask-closable="false"
         :close-on-esc="false">
         <div style="color: red; margin-bottom: 10px">
-            wallet address for test:
+            wallet address for test(threshold: 2, approvers: 3):
             B62qpD4T3GcYSNmWUN3g8GVnXLyDECEEaCJ6owtZAbFDPA1zZUBrnKd
 
             owner:
@@ -425,6 +430,16 @@ const createWalletModel = ref({
     ownerAddress4: null as null | string,
     threshold: 1,
 });
+// const testCreateWallet = () => {
+//     createWalletModel.value.walletName = "test";
+//     createWalletModel.value.ownerName1 = "owner1";
+//     createWalletModel.value.ownerAddress1 = "B62qoGsRCnmLD5MQcyUagUUrpQtBQ5e75ZhHAwVzdbkMH5ZuZM3YM2Y";
+//     createWalletModel.value.ownerName2 = "owner2";
+//     createWalletModel.value.ownerAddress2 = "B62qo9XJskZo9k1ErFqpuG21msA3y9HkpMQTVmg8LuYDFyasmcND2FW";
+//     createWalletModel.value.ownerName3 = "owner3";
+//     createWalletModel.value.ownerAddress3 = "B62qm1uQcaZ9Ck8qXuNt46u3K5SQrZ8x7dDfurUFv4VuV8HVMBv6g6r";
+//     createWalletModel.value.threshold = 2;
+// };
 const createWalletRules = {
     ownerName1: {
         required: true,
@@ -455,6 +470,7 @@ const createStatusForDone = () => {
     }, 2000);
 
 };
+
 const createWallet = async () => {
     if (zkappState.value.signerPrivateKey == null) {
         message.error("Please connect signer wallet first");

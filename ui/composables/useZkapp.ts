@@ -19,14 +19,17 @@ import type {
 
 type Transaction = Awaited<ReturnType<typeof Mina.transaction>>;
 
+let zkAppCLass: null | typeof MultiSigZkapp = null;
+let zkApp: null | MultiSigZkapp = null;
+
 export default function () {
   const { mina2Nano, nano2Mina } = useUtils();
 
   type ZkappState = {
     hasBeenSetup: boolean;
     hasBeenCompiled: boolean;
-    MultiSigZkapp: null | typeof MultiSigZkapp;
-    zkApp: null | MultiSigZkapp;
+    // MultiSigZkapp: null | typeof MultiSigZkapp;
+    // zkApp: null | MultiSigZkapp;
     transaction: null | Transaction;
 
     creatingTransaction: boolean;
@@ -55,8 +58,8 @@ export default function () {
     return {
       hasBeenSetup: false,
       hasBeenCompiled: false,
-      MultiSigZkapp: null as null | typeof MultiSigZkapp,
-      zkApp: null as null | MultiSigZkapp,
+      // MultiSigZkapp: null as null | typeof MultiSigZkapp,
+      // zkApp: null as null | MultiSigZkapp,
       transaction: null as null | Transaction,
 
       creatingTransaction: false,
@@ -94,14 +97,14 @@ export default function () {
 
   const loadContract = async () => {
     const { MultiSigZkapp } = await import("zk-multi-sig");
-    zkappState.value.MultiSigZkapp = MultiSigZkapp;
+    zkAppCLass = MultiSigZkapp;
     console.log("Load Contract Done");
   };
 
   const compileContract = async (): Promise<{ data: string; hash: string }> => {
     console.log("start compile contract");
     console.time("compile MultiSigZkapp");
-    let { verificationKey } = await zkappState.value.MultiSigZkapp!.compile();
+    let { verificationKey } = await zkAppCLass!.compile();
     zkappState.value.hasBeenCompiled = true;
     console.timeEnd("compile MultiSigZkapp");
 
@@ -114,22 +117,19 @@ export default function () {
   };
 
   const getApproverHashes = () => {
-    console.log(
-      "approverHashes address: ",
-      zkappState.value.zkApp?.address.toBase58()
-    );
+    console.log("approverHashes address: ", zkApp!.address.toBase58());
 
-    const approverHashes = zkappState.value.zkApp!.approverHashes.get();
+    const approverHashes = zkApp!.approverHashes.get();
     return approverHashes;
   };
 
   const getApproverThreshold = () => {
-    const approverThreshold = zkappState.value.zkApp!.approverThreshold.get();
+    const approverThreshold = zkApp!.approverThreshold.get();
     return approverThreshold;
   };
 
   const getLatestProposalHash = () => {
-    const latestProposalHash = zkappState.value.zkApp!.latestProposalHash.get();
+    const latestProposalHash = zkApp!.latestProposalHash.get();
     return latestProposalHash;
   };
 
@@ -249,7 +249,7 @@ export default function () {
 
   const initZkappInstance = (publicKey58: string) => {
     const publicKey = PublicKey.fromBase58(publicKey58);
-    zkappState.value.zkApp = new zkappState.value.MultiSigZkapp!(publicKey);
+    zkApp = new zkAppCLass!(publicKey);
   };
 
   const deployWallet = async ({
@@ -269,7 +269,7 @@ export default function () {
       () => {
         AccountUpdate.fundNewAccount(zkappState.value.signerPrivateKey!);
 
-        zkappState.value.zkApp!.deploy({
+        zkApp!.deploy({
           zkappKey: zkAppPrivateKey,
           verificationKey,
           approvers,
@@ -300,7 +300,7 @@ export default function () {
     let transaction = await Mina.transaction(
       { feePayerKey: zkappState.value.signerPrivateKey!, fee: transactionFee },
       () => {
-        zkappState.value.zkApp!.sendAssets(p);
+        zkApp!.sendAssets(p);
       }
     );
     console.log("proving the transaction...");
