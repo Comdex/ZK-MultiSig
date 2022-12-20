@@ -17,10 +17,23 @@ export default defineNuxtConfig({
     client: false,
   },
 
+  routeRules: {
+    // Set custom headers matching paths
+    "/_nuxt/**": {
+      headers: {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      },
+    },
+  },
+
   vite: {
-    build: { target: "esnext" },
+    build: { target: "es2020" },
     optimizeDeps: {
-      esbuildOptions: { target: "esnext" },
+      esbuildOptions: {
+        target: "es2020",
+        supported: { "top-level-await": true },
+      },
 
       include:
         process.env.NODE_ENV === "development"
