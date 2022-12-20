@@ -12,6 +12,7 @@ A zk multi-signature contract wallet, which can be freely created and set by use
 - Update wallet staking delegation
 - Wallet contracts can be safely upgraded
 - Support third-party zkApps integrated wallet contract for authorization
+- All operations send events for later audit
 
 The Project consists of the following sub projects.
 
