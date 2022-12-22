@@ -551,8 +551,13 @@ const createWallet = async () => {
         setTimeout(async () => { await refreshWalletState(); }, 300000);
         dialog.success({
             title: 'Success',
+            maskClosable: false,
+            closeOnEsc: false,
             content: `
 The wallet deploy transaction has been submitted to the network.
+Your multi-sig wallet address(please be sure to keep the address and owner information by yourself):
+${zkAppPublicKey58}
+
 Your wallet will be available as soon as the transaction is included in a block:
 https://berkeley.minaexplorer.com/transaction/${hash}
 `,

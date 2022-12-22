@@ -139,6 +139,15 @@ const sendProposal = async () => {
         removeLoading();
         return;
     }
+
+    await refreshWalletState();
+    if (Number(zkappState.value.walletBalance) < proposal.value?.amount!) {
+        message.error('Insufficient balance in multi-sig wallet');
+        sendBtnDisabled.value = false;
+        removeLoading();
+        return;
+    }
+
     const p = await createProposal({
         contractAddress: zkappState.value.walletPublicKey58!,
         contractNonce: zkappState.value.walletNonce!, desc: proposal.value?.desc!,
@@ -152,6 +161,8 @@ const sendProposal = async () => {
         const hash = await sendAssets(ps);
         dialog.success({
             title: 'Success',
+            maskClosable: false,
+            closeOnEsc: false,
             content: `
 Propsal transaction sent.
 

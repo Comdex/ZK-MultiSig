@@ -10,11 +10,17 @@
                 <n-tag type="info" style="margin-left: 10px">
                     Berkley TestNet
                 </n-tag>
+
             </div>
 
-            <div>
-                <n-button v-if="zkappState.signerPublicKey58 == null" @click="showConnectWallet">Connect
-                    Wallet</n-button>
+            <div class="header-right">
+                <n-button type="info" style="margin-right: 20px;" ghost @click="showGenKey">
+                    Generate Keys
+                </n-button>
+
+                <n-button v-if="zkappState.signerPublicKey58 == null" @click="showConnectWallet">
+                    Connect Wallet
+                </n-button>
                 <div v-else>
                     <n-tag type="info" class="signer" @click="copySignerPublicKey58">
                         signer:{{ sliceAddress(zkappState.signerPublicKey58) }}
@@ -44,7 +50,7 @@
                     <n-tag v-if="zkappState.walletPublicKey58 != null" @click="copyWalletPublicKey58" :bordered="false"
                         type="success" size="large" round style="margin-right: 12px">
                         Wallet: {{ sliceAddress(zkappState.walletPublicKey58) }}
-                        ({{ zkappState.walletName }})
+                        <template v-if="zkappState.walletName != null">({{ zkappState.walletName }})</template>
                     </n-tag>
 
                     <n-tag v-if="zkappState.walletBalance != null" :bordered="false" type="success" size="large" round
@@ -106,6 +112,47 @@
             </template>
         </n-modal>
 
+
+        <!--show gen keys modal-->
+        <n-modal v-model:show="showGenKeyModal" preset="card" @on-after-leave="genKeysClose" :style="connectBodyStyle"
+            title="Generate Mina Keys" size="huge" :bordered="false" :segmented="connectSegmented"
+            :mask-closable="false" :close-on-esc="false">
+
+            <div>
+                Public Key(Address):
+            </div>
+            <div v-if="pubKey != null">
+                {{ pubKey }}
+            </div>
+            <div v-else>
+                ungenerated
+            </div>
+
+            <n-divider />
+
+            <div>
+                Private Key:
+            </div>
+
+            <div v-if="priKey != null">
+                {{ priKey }}
+            </div>
+            <div v-else>
+                ungenerated
+            </div>
+            <n-divider />
+
+            <NuxtLink to="https://faucet.minaprotocol.com" target="_blank">Testnet Faucet
+            </NuxtLink>
+
+            <template #footer>
+                <n-button type="info" ghost @click="genKeys">
+                    Genereate
+                </n-button>
+
+            </template>
+        </n-modal>
+
     </div>
 </template>
 
@@ -113,12 +160,13 @@
 import { PrivateKey, PublicKey } from 'snarkyjs';
 import { WalletConfJSON } from '../common/types';
 import { STORAGE_KEY_SIGNER_PRIVATEKEY, STORAGE_KEY_WALLET_CONF, APP_URL } from '../common/constant';
+import { useDialog } from 'naive-ui';
 
-const { sliceAddress, nano2Mina, message } = useUtils();
+const { sliceAddress, message } = useUtils();
 const { zkappState, currentWalletAddress, loadSnarkyJS, loadContract,
     setActiveInstanceToBerkeley, refreshWalletState, refreshSignerState,
     initZkappInstance } = useZkapp();
-
+const dialog = useDialog();
 
 const connectBodyStyle = {
     'width': '600px',
@@ -132,6 +180,18 @@ const signerPrivateKey58 = ref<string | null>(null);
 const showConnectWallet = () => {
     signerPrivateKey58.value = null;
     showConnectWalletModal.value = true;
+};
+const showGenKeyModal = ref<boolean>(false);
+const showGenKey = () => {
+    showGenKeyModal.value = true;
+};
+
+const pubKey = ref<string | null>(null);
+const priKey = ref<string | null>(null);
+const genKeys = () => {
+    const privateKey = PrivateKey.random();
+    pubKey.value = privateKey.toPublicKey().toBase58();
+    priKey.value = privateKey.toBase58();
 };
 
 const setSignerKey = (signerPrivateKey58Str: string) => {
@@ -161,6 +221,7 @@ const importPriKey = async () => {
 
     await refreshSignerState();
 };
+
 
 const disconnectWallet = () => {
     zkappState.value.signerPublicKey = null;
@@ -294,6 +355,10 @@ onMounted(async () => {
         align-content: center;
         font-size: 18px;
         font-weight: bold;
+    }
+
+    .header-right {
+        display: flex;
     }
 
     .signer {
