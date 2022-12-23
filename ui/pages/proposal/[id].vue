@@ -188,12 +188,23 @@ const addSign = async () => {
 
     addSignBtnDisabled.value = true;
     createLoading();
+
     const approverHashes = zkappState.value.approverHashes;
     const isApprover = approverHashes!.isApprover(zkappState.value.signerPublicKey!);
     if (!isApprover) {
         addSignBtnDisabled.value = false;
         removeLoading();
         message.error("The current signer wallet is not one of the owners of current multisig wallet");
+        return;
+    }
+
+    const { data: re } = await useFetch('/api/isSigned', {
+        method: 'GET', params: { proposalId: proposal.value?.id, publicKey58: zkappState.value.signerPublicKey58 }, pick: ['data']
+    });
+    if ((re.value as any).data.isSigned) {
+        addSignBtnDisabled.value = false;
+        removeLoading();
+        message.error("The current siger has signed the proposal");
         return;
     }
 

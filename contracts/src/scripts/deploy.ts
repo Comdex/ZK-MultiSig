@@ -37,7 +37,7 @@ export const deploy = async (
   let noNeedToFundAccount =
     zkAppResponse.error == null && zkAppResponse.account!.appState == null;
   // TODO add check that verification key is correct once this is available in SnarkyJS
-
+  console.log('noNeedToFundAccount: ', noNeedToFundAccount);
   // ----------------------------------------------------
 
   if (isDeployed) {
